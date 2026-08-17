@@ -1,26 +1,60 @@
 # EarthGlass
 
-A layered geospatial dashboard. **Milestone 1** ships the application skeleton:
-a FastAPI service, a layer catalog, a Leaflet dashboard, and a Typer CLI.
+EarthGlass is the **renderer-agnostic geospatial layer engine** for the OBEOS ecosystem. It owns layer definitions, provider contracts, normalized feature payloads, metadata, and future caching/refresh behavior. It does **not** own the planetary renderer.
 
-This milestone intentionally has **no database, no ingestion, no AI, no live
-APIs, and no Cesium** — just a clean, installable foundation.
+OBEOS Earth is the intended 3D planetary runtime and Cesium client. EarthGlass supplies reusable geospatial information that OBEOS Earth, a CLI, a 2D map, or another client can consume without importing renderer-specific code.
+
+## Architecture
+
+```text
+Geospatial providers
+  USGS / future feeds
+        |
+        v
+EarthGlass provider adapters
+        |
+        v
+LayerRegistry + LayerDefinition
+        |
+        +--> FastAPI JSON API
+        +--> Typer CLI
+        +--> Leaflet demo surface
+        +--> OBEOS Earth / Cesium client
+```
+
+The current Leaflet page remains a lightweight development/demo surface. Leaflet is no longer part of the core layer model.
+
+## Current milestone
+
+Version 0.2 establishes the reusable core:
+
+- renderer-independent `LayerDefinition`
+- central `LayerRegistry`
+- provider protocol for refresh + normalized feature retrieval
+- earthquake layer metadata registered against a future USGS adapter
+- FastAPI and CLI consuming the same core registry
+- explicit API endpoint for individual layer metadata
+- tests enforcing that serialized layer definitions do not depend on Leaflet or Cesium
+
+There is still no live ingestion in this milestone. Provider adapters, persistent caching, and real USGS feature retrieval are future work.
 
 ## Layout
 
-```
+```text
 earthglass/
   earthglass/
     __init__.py
-    cli.py            # Typer CLI (serve / layers / cache status)
+    layers.py          # layer model + registry
+    providers.py       # provider/feature contracts
+    cli.py             # Typer adapter
     web/
-      __init__.py
-      app.py          # FastAPI app + layer catalog
+      app.py           # FastAPI adapter + demo UI
       templates/
-        index.html    # Leaflet dashboard
       static/
-        app.css
   tests/
+    test_layers.py
+    test_web.py
+    test_cli.py
   pyproject.toml
   README.md
 ```
@@ -31,25 +65,27 @@ earthglass/
 python -m pip install -e ".[dev]"
 ```
 
-## Web API
+## API
 
-- `GET /health` → `{"status": "ok", "service": "earthglass"}`
-- `GET /api/layers` → list of layer metadata (includes the `earthquakes` layer)
-- `GET /` → Jinja-rendered Leaflet dashboard with a layer sidebar
+- `GET /health`
+- `GET /api/status`
+- `GET /api/layers`
+- `GET /api/layers/{layer_id}`
+- `GET /` — optional Leaflet demo surface
 
-Run the server:
+Run locally:
 
 ```bash
-earthglass serve            # http://127.0.0.1:8000
-earthglass serve --reload   # development mode
+earthglass serve
+earthglass serve --reload
 ```
 
 ## CLI
 
 ```bash
 earthglass --help
-earthglass layers           # list available layers
-earthglass cache status     # show cache state (empty in Milestone 1)
+earthglass layers
+earthglass cache status
 ```
 
 ## Development
@@ -57,3 +93,9 @@ earthglass cache status     # show cache state (empty in Milestone 1)
 ```bash
 pytest
 ```
+
+## Relationship to OBEOS Earth
+
+**EarthGlass understands geospatial information. OBEOS Earth understands the planet.**
+
+EarthGlass should remain usable without Cesium, React, or the OBEOS Earth frontend. OBEOS Earth can consume EarthGlass APIs and render returned layers on its 3D globe alongside weather, atmosphere, terrain, and time-dependent planetary systems.

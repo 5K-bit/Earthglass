@@ -4,10 +4,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from earthglass.web.app import get_layers
+from earthglass.layers import registry
 
 app = typer.Typer(
-    help="EarthGlass: a layered geospatial dashboard.",
+    help="EarthGlass: renderer-agnostic geospatial layer engine.",
     no_args_is_help=True,
 )
 cache_app = typer.Typer(help="Inspect EarthGlass cache state.", no_args_is_help=True)
@@ -22,7 +22,7 @@ def serve(
     port: int = typer.Option(8000, help="Port to listen on."),
     reload: bool = typer.Option(False, help="Enable auto-reload for development."),
 ) -> None:
-    """Run the EarthGlass web server."""
+    """Run the EarthGlass API and demo web surface."""
     import uvicorn
 
     console.print(
@@ -33,21 +33,23 @@ def serve(
 
 @app.command()
 def layers() -> None:
-    """List the map layers EarthGlass can render."""
+    """List registered geospatial layers."""
     table = Table(title="EarthGlass Layers")
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="magenta")
-    table.add_column("Type")
+    table.add_column("Category")
+    table.add_column("Geometry")
+    table.add_column("Provider")
     table.add_column("Enabled")
-    table.add_column("Description")
 
-    for layer in get_layers():
+    for layer in registry.list():
         table.add_row(
-            str(layer["id"]),
-            str(layer["name"]),
-            str(layer["type"]),
-            "yes" if layer["enabled"] else "no",
-            str(layer["description"]),
+            layer.id,
+            layer.name,
+            layer.category,
+            layer.geometry,
+            layer.provider,
+            "yes" if layer.enabled else "no",
         )
 
     console.print(table)
@@ -56,18 +58,15 @@ def layers() -> None:
 @cache_app.command("status")
 def cache_status() -> None:
     """Show the cache status for each layer."""
-    console.print(
-        "[yellow]Caching is not enabled in Milestone 1 — "
-        "all layers report empty.[/]"
-    )
+    console.print("[yellow]Provider caching is not enabled yet.[/]")
 
     table = Table(title="Cache Status")
     table.add_column("Layer", style="cyan", no_wrap=True)
     table.add_column("Cached")
     table.add_column("Entries")
 
-    for layer in get_layers():
-        table.add_row(str(layer["id"]), "no", "0")
+    for layer in registry.list():
+        table.add_row(layer.id, "no", "0")
 
     console.print(table)
 

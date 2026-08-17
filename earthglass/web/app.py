@@ -1,38 +1,25 @@
 """EarthGlass FastAPI application.
 
-Milestone 1 exposes a small read-only surface: a health probe, a layer
-catalog, and a Jinja-rendered Leaflet dashboard. No database, ingestion,
-or live data sources are wired up yet.
+The web surface is now an adapter over the renderer-agnostic EarthGlass core.
+Leaflet remains a lightweight demo UI; layer definitions live outside the web
+package so OBEOS Earth or any other client can consume the same registry.
 """
 
 from pathlib import Path
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
+from earthglass.layers import get_layers, registry
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 LEAFLET_JS = STATIC_DIR / "vendor" / "leaflet.js"
 LEAFLET_CSS = STATIC_DIR / "vendor" / "leaflet.css"
-
-LAYERS: list[dict[str, object]] = [
-    {
-        "id": "earthquakes",
-        "name": "Earthquakes",
-        "description": "Recent global seismic events.",
-        "type": "point",
-        "enabled": True,
-        "attribution": "USGS (placeholder, not yet wired)",
-    }
-]
-
-
-def get_layers() -> list[dict[str, object]]:
-    return [dict(layer) for layer in LAYERS]
 
 
 def asset_status() -> dict[str, object]:
@@ -47,10 +34,15 @@ def asset_status() -> dict[str, object]:
         "local_leaflet_available": local_leaflet_available,
         "online_tiles_enabled": online_tiles_enabled,
         "map_enabled": map_enabled,
+        "renderer": "leaflet-demo",
     }
 
 
-app = FastAPI(title="EarthGlass", version="0.1.0")
+app = FastAPI(
+    title="EarthGlass",
+    version="0.2.0",
+    description="Renderer-agnostic geospatial layer engine and API.",
+)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -65,9 +57,23 @@ def api_layers() -> list[dict[str, object]]:
     return get_layers()
 
 
+@app.get("/api/layers/{layer_id}")
+def api_layer(layer_id: str) -> dict[str, object]:
+    try:
+        return registry.get(layer_id).as_dict()
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/api/status")
 def api_status() -> dict[str, object]:
-    return {"status": "ok", "service": "earthglass", "assets": asset_status()}
+    return {
+        "status": "ok",
+        "service": "earthglass",
+        "architecture": "geospatial-layer-engine",
+        "layers": len(registry.list()),
+        "assets": asset_status(),
+    }
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "name": "earthglass",
+  "component_type": "service",
+  "version": "0.2.0",
+  "entrypoint": "earthglass",
+  "interfaces": ["cli", "http", "geospatial-layer-api"],
+  "capabilities": ["layer-registry", "provider-contracts", "normalized-features", "geospatial-metadata"],
+  "lifecycle": "on-demand",
+  "health": {"path": "/health", "default_url": "http://127.0.0.1:8000/health"},
+  "dependencies": [],
+  "source_repository": "5K-bit/Earthglass"
+}

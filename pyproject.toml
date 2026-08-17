@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "earthglass"
-version = "0.1.0"
-description = "EarthGlass: a layered geospatial dashboard."
+version = "0.2.0"
+description = "EarthGlass: renderer-agnostic geospatial layer engine for OBEOS Earth and other clients."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

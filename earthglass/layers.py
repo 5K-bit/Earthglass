@@ -62,7 +62,7 @@ registry.register(
         provider="usgs",
         enabled=True,
         refresh_interval=300,
-        attribution="USGS (provider adapter planned; no live ingestion yet)",
+        attribution="U.S. Geological Survey (USGS)",
     )
 )
 

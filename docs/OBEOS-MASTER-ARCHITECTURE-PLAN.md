@@ -154,10 +154,55 @@ EarthGlass: geospatial/aircraft data
 correlation / reasoning / action
 ```
 
+## Reconciliation with the EarthGlass repository
+
+The plan extends the existing structure through explicit boundaries rather than
+replacing it.
+
+### Retain
+
+- `LayerDefinition` and `LayerRegistry` remain the source of layer identity,
+  discoverability, refresh policy, and renderer-neutral presentation metadata.
+- FastAPI, Typer, and the existing tests remain adapters/verification around the
+  core package.
+- The Leaflet page remains an optional development surface only.
+- Normalized output remains GeoJSON-compatible so Cesium, Leaflet, DAISE tools,
+  and future clients can consume the same response.
+
+### Modify
+
+- The initial provider protocol is now backed by `ProviderManager`, which routes
+  a layer to a provider and exposes lifecycle state.
+- `FeatureCollection` is now a validated normalized contract with collection
+  provenance, per-feature provenance, generation time, and truthful cache state.
+- The FastAPI adapter now exposes features, explicit refresh, and provider status;
+  the CLI exposes provider/cache status and refresh.
+- The earthquake layer's attribution now describes its real USGS source rather
+  than a planned adapter.
+
+### Add
+
+- `USGSEarthquakeProvider` for the official USGS all-day GeoJSON feed.
+- `FeatureCache` for atomic, schema-versioned, validated disk persistence.
+- Runtime composition isolated from models, providers, APIs, and renderers.
+- Lifecycle states: `idle`, `refreshing`, `ready`, `degraded`, `unavailable`, and
+  `error` (reserved for non-availability failures surfaced by future supervisors).
+- Deterministic tests for live normalization, validation, cache hits, stale-cache
+  fallback, no-cache unavailability, API behavior, and renderer independence.
+
+### Deliberately outside EarthGlass
+
+- Cesium entities, camera controls, materials, terrain, atmosphere, and UI state
+  remain in OBEOS Earth.
+- EVENT_BACKBONE transport, durable World State, and DAISE tool implementations
+  consume this slice later; they are not hidden inside the provider adapter.
+- EarthGlass emits portable observations and status. It does not become the event
+  bus, world database, orchestrator, or planetary client.
+
 ## Implementation roadmap
 
 ### Phase 1 — EarthGlass foundation
-Current milestone:
+Retained foundation:
 - renderer-independent LayerDefinition
 - central LayerRegistry
 - provider protocol
@@ -165,14 +210,21 @@ Current milestone:
 - CLI adapter
 - tests enforcing renderer independence
 
+Completed in the first vertical slice:
+1. provider manager and lifecycle state
+2. live USGS earthquake retrieval
+3. normalized feature validation
+4. collection and feature source metadata/provenance
+5. persistent atomic caching
+6. explicit degraded/unavailable behavior
+7. stable feature, refresh, and provider-status HTTP endpoints
+
 Next:
-1. implement provider adapter interface fully
-2. add live USGS earthquake retrieval
-3. add normalized feature validation
-4. add source metadata/provenance
-5. add persistent caching
-6. add refresh lifecycle/state
-7. expose stable geospatial API
+1. define EarthGlass observation envelopes for EVENT_BACKBONE publication
+2. publish normalized earthquake observations through an injected event sink
+3. add a World State consumer/read model without coupling it to EarthGlass
+4. add spatial/time query parameters and pagination to the feature API
+5. define cache retention and migration policy before adding more feeds
 
 ### Phase 2 — OBEOS Earth V1
 - connect EarthGlass to the planetary client

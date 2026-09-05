@@ -14,6 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from earthglass.layers import get_layers, registry
+from earthglass.providers import ProviderManager, ProviderUnavailable
+from earthglass.runtime import provider_manager
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -38,49 +40,83 @@ def asset_status() -> dict[str, object]:
     }
 
 
-app = FastAPI(
-    title="EarthGlass",
-    version="0.2.0",
-    description="Renderer-agnostic geospatial layer engine and API.",
-)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "earthglass"}
+def create_app(providers: ProviderManager | None = None) -> FastAPI:
+    """Build the HTTP adapter; providers can be replaced for deterministic tests."""
 
-
-@app.get("/api/layers")
-def api_layers() -> list[dict[str, object]]:
-    return get_layers()
-
-
-@app.get("/api/layers/{layer_id}")
-def api_layer(layer_id: str) -> dict[str, object]:
-    try:
-        return registry.get(layer_id).as_dict()
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.get("/api/status")
-def api_status() -> dict[str, object]:
-    return {
-        "status": "ok",
-        "service": "earthglass",
-        "architecture": "geospatial-layer-engine",
-        "layers": len(registry.list()),
-        "assets": asset_status(),
-    }
-
-
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
-    assets = asset_status()
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {"layers": get_layers(), "assets": assets},
+    application = FastAPI(
+        title="EarthGlass",
+        version="0.3.0",
+        description="Renderer-agnostic geospatial layer engine and API.",
     )
+    application.state.providers = providers or provider_manager
+    application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @application.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok", "service": "earthglass"}
+
+    @application.get("/api/layers")
+    def api_layers() -> list[dict[str, object]]:
+        return get_layers()
+
+    @application.get("/api/layers/{layer_id}")
+    def api_layer(layer_id: str) -> dict[str, object]:
+        try:
+            return registry.get(layer_id).as_dict()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @application.get("/api/layers/{layer_id}/features")
+    def api_layer_features(layer_id: str) -> dict[str, object]:
+        try:
+            return application.state.providers.get_features(layer_id).as_geojson()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ProviderUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @application.post("/api/layers/{layer_id}/refresh")
+    def api_layer_refresh(layer_id: str) -> dict[str, object]:
+        try:
+            return application.state.providers.refresh(layer_id).as_geojson()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ProviderUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @application.get("/api/providers/status")
+    def api_provider_status() -> list[dict[str, object]]:
+        return application.state.providers.statuses()
+
+    @application.get("/api/status")
+    def api_status() -> dict[str, object]:
+        statuses = application.state.providers.statuses()
+        degraded = any(
+            item["state"] in {"degraded", "unavailable", "error"}
+            for item in statuses
+        )
+        return {
+            "status": "degraded" if degraded else "ok",
+            "service": "earthglass",
+            "architecture": "geospatial-layer-engine",
+            "layers": len(registry.list()),
+            "providers": statuses,
+            "assets": asset_status(),
+        }
+
+    @application.get("/", response_class=HTMLResponse)
+    def index(request: Request) -> HTMLResponse:
+        assets = asset_status()
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            {"layers": get_layers(), "assets": assets},
+        )
+
+    return application
+
+
+app = create_app()

@@ -11,6 +11,7 @@ def test_cli_help_lists_commands() -> None:
     assert "serve" in result.output
     assert "layers" in result.output
     assert "cache" in result.output
+    assert "refresh" in result.output
 
 
 def test_cli_layers_shows_earthquakes() -> None:

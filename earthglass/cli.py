@@ -5,6 +5,8 @@ from rich.console import Console
 from rich.table import Table
 
 from earthglass.layers import registry
+from earthglass.providers import ProviderUnavailable
+from earthglass.runtime import provider_manager
 
 app = typer.Typer(
     help="EarthGlass: renderer-agnostic geospatial layer engine.",
@@ -58,17 +60,37 @@ def layers() -> None:
 @cache_app.command("status")
 def cache_status() -> None:
     """Show the cache status for each layer."""
-    console.print("[yellow]Provider caching is not enabled yet.[/]")
-
-    table = Table(title="Cache Status")
-    table.add_column("Layer", style="cyan", no_wrap=True)
+    table = Table(title="Provider and Cache Status")
+    table.add_column("Provider", style="cyan", no_wrap=True)
+    table.add_column("State")
     table.add_column("Cached")
-    table.add_column("Entries")
+    table.add_column("Stale")
+    table.add_column("Features")
 
-    for layer in registry.list():
-        table.add_row(layer.id, "no", "0")
+    for status in provider_manager.statuses():
+        table.add_row(
+            str(status["name"]),
+            str(status["state"]),
+            "yes" if status["cache_available"] else "no",
+            "yes" if status["cache_stale"] else "no",
+            str(status["feature_count"]),
+        )
 
     console.print(table)
+
+
+@app.command()
+def refresh(layer_id: str = typer.Argument(..., help="Layer to refresh.")) -> None:
+    """Fetch, normalize, validate, and cache a layer now."""
+    try:
+        collection = provider_manager.refresh(layer_id)
+    except (KeyError, ProviderUnavailable) as exc:
+        console.print(f"[bold red]Refresh failed:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(
+        f"[green]Refreshed {layer_id}:[/] {len(collection.features)} features "
+        f"({collection.cache['status']})"
+    )
 
 
 if __name__ == "__main__":

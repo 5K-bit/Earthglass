@@ -26,17 +26,19 @@ The current Leaflet page remains a lightweight development/demo surface. Leaflet
 
 ## Current milestone
 
-Version 0.2 establishes the reusable core:
+Version 0.3 delivers the first live, reusable provider slice:
 
 - renderer-independent `LayerDefinition`
 - central `LayerRegistry`
-- provider protocol for refresh + normalized feature retrieval
-- earthquake layer metadata registered against a future USGS adapter
+- provider manager and observable lifecycle state
+- live USGS all-day earthquake retrieval
+- validated, normalized GeoJSON features
+- collection- and feature-level source provenance
+- atomic persistent cache with explicit fresh/stale metadata
+- degraded operation from the last valid cache
 - FastAPI and CLI consuming the same core registry
-- explicit API endpoint for individual layer metadata
+- feature, refresh, and provider-status API endpoints
 - tests enforcing that serialized layer definitions do not depend on Leaflet or Cesium
-
-There is still no live ingestion in this milestone. Provider adapters, persistent caching, and real USGS feature retrieval are future work.
 
 ## Layout
 
@@ -45,7 +47,10 @@ earthglass/
   earthglass/
     __init__.py
     layers.py          # layer model + registry
-    providers.py       # provider/feature contracts
+    providers.py       # validated contracts + provider manager
+    cache.py           # persistent normalized-feature cache
+    usgs.py            # live earthquake adapter
+    runtime.py         # default provider composition
     cli.py             # Typer adapter
     web/
       app.py           # FastAPI adapter + demo UI
@@ -71,6 +76,9 @@ python -m pip install -e ".[dev]"
 - `GET /api/status`
 - `GET /api/layers`
 - `GET /api/layers/{layer_id}`
+- `GET /api/layers/{layer_id}/features`
+- `POST /api/layers/{layer_id}/refresh`
+- `GET /api/providers/status`
 - `GET /` — optional Leaflet demo surface
 
 Run locally:
@@ -86,7 +94,14 @@ earthglass serve --reload
 earthglass --help
 earthglass layers
 earthglass cache status
+earthglass refresh earthquakes
 ```
+
+By default, provider data is cached under `.earthglass-cache/`. Set
+`EARTHGLASS_CACHE_DIR` to choose another location. When USGS cannot be reached,
+EarthGlass returns the last validated cache with `metadata.cache.stale: true` and
+reports the provider as `degraded`. Without a valid cache, the feature API returns
+HTTP 503; stale external data is never represented as live.
 
 ## Development
 

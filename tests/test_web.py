@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
 
-from earthglass.web.app import app
+from earthglass.cache import FeatureCache
+from earthglass.layers import registry
+from earthglass.providers import ProviderManager
+from earthglass.usgs import USGSEarthquakeProvider
+from earthglass.web.app import app, create_app
 
 client = TestClient(app)
 
@@ -51,3 +55,62 @@ def test_index_remains_demo_surface() -> None:
     body = response.text
     assert "EarthGlass" in body
     assert "Earthquakes" in body
+
+
+def test_feature_api_exposes_normalized_renderer_neutral_payload(tmp_path) -> None:
+    payload = {
+        "type": "FeatureCollection",
+        "metadata": {"generated": 1_767_225_660_000},
+        "features": [
+            {
+                "id": "api-test",
+                "geometry": {"type": "Point", "coordinates": [-71.0, 42.0, 5.0]},
+                "properties": {
+                    "time": 1_767_225_600_000,
+                    "updated": 1_767_225_650_000,
+                    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/api-test",
+                    "title": "M 1.2 - API test",
+                    "place": "API test",
+                    "mag": 1.2,
+                },
+            }
+        ],
+    }
+    providers = ProviderManager(registry)
+    providers.register(
+        USGSEarthquakeProvider(
+            cache=FeatureCache(tmp_path), fetcher=lambda *_: payload
+        )
+    )
+    local_client = TestClient(create_app(providers))
+
+    response = local_client.get("/api/layers/earthquakes/features")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["type"] == "FeatureCollection"
+    assert data["metadata"]["source"]["provider"] == "usgs"
+    assert data["features"][0]["provenance"]["source_id"] == "api-test"
+    assert "cesium" not in str(data).lower()
+    assert "leaflet" not in str(data).lower()
+
+    status = local_client.get("/api/providers/status")
+    assert status.status_code == 200
+    assert status.json()[0]["state"] == "ready"
+
+    refreshed = local_client.post("/api/layers/earthquakes/refresh")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["metadata"]["cache"]["status"] == "live"
+
+
+def test_feature_api_returns_503_when_live_and_cache_are_unavailable(tmp_path) -> None:
+    providers = ProviderManager(registry)
+    providers.register(
+        USGSEarthquakeProvider(
+            cache=FeatureCache(tmp_path),
+            fetcher=lambda *_: (_ for _ in ()).throw(TimeoutError("offline")),
+        )
+    )
+    local_client = TestClient(create_app(providers))
+    response = local_client.get("/api/layers/earthquakes/features")
+    assert response.status_code == 503
+    assert "no valid cache" in response.json()["detail"]

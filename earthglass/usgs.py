@@ -70,6 +70,9 @@ class USGSEarthquakeProvider:
         self._status.cache_age_seconds = (
             max(0, round(self._age(cached), 3)) if cached is not None else None
         )
+        if cached is not None:
+            self._status.feature_count = len(cached.features)
+            self._status.last_success_at = cached.source.retrieved_at
         return self._status
 
     def _age(self, collection: FeatureCollection) -> float:

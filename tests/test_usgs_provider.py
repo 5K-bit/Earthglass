@@ -75,6 +75,8 @@ def test_fresh_disk_cache_avoids_network(tmp_path) -> None:
     second = USGSEarthquakeProvider(
         cache=FeatureCache(tmp_path), fetcher=should_not_fetch, clock=lambda: now
     )
+    assert second.status.cache_available is True
+    assert second.status.feature_count == 1
     collection = second.get_features("earthquakes")
 
     assert collection.cache["status"] == "cache"

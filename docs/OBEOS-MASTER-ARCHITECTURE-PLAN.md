@@ -227,12 +227,30 @@ Next:
 5. define cache retention and migration policy before adding more feeds
 
 ### Phase 2 — OBEOS Earth V1
-- connect EarthGlass to the planetary client
-- Cesium globe
-- NOAA GFS weather ingestion
-- temperature visualization
-- basic time/state handling
-- graceful unavailable/degraded states
+- [x] connect EarthGlass to a separately packaged planetary client
+- [x] Cesium globe using bundled Natural Earth imagery without an Ion token
+- [x] normalized earthquake rendering and selection
+- [x] live/cache/degraded presentation state
+- [x] five-minute refresh lifecycle and manual refresh
+- [ ] NOAA GFS weather ingestion
+- [ ] temperature visualization
+- [ ] richer time controls and historical state
+- [ ] production deployment topology
+
+Implemented boundary:
+
+```text
+USGS
+  |
+EarthGlass provider -> validation -> cache -> HTTP API :8000
+                                            |
+                                      OBEOS Earth :5173
+                                            |
+                                      Cesium entities
+```
+
+The `obeos-earth/` package imports Cesium and owns camera/entity/UI state.
+The Python `earthglass/` package has no Cesium, React, or browser dependency.
 
 ### Phase 3 — World layers
 Add and normalize:

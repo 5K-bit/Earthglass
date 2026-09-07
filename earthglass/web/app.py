@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -48,10 +49,25 @@ def create_app(providers: ProviderManager | None = None) -> FastAPI:
 
     application = FastAPI(
         title="EarthGlass",
-        version="0.3.0",
+        version="0.4.0",
         description="Renderer-agnostic geospatial layer engine and API.",
     )
     application.state.providers = providers or provider_manager
+    allowed_origins = [
+        origin.strip()
+        for origin in os.getenv(
+            "EARTHGLASS_CORS_ORIGINS",
+            "http://127.0.0.1:5173,http://localhost:5173,"
+            "http://127.0.0.1:4173,http://localhost:4173",
+        ).split(",")
+        if origin.strip()
+    ]
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Accept", "Content-Type"],
+    )
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.get("/health")

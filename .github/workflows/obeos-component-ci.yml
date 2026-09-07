@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  earthglass-api:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,3 +23,19 @@ jobs:
       - run: python -m pytest -q
       - name: Validate OBEOS manifest exists
         run: python -c "import json; d=json.load(open('obeos.manifest.json')); assert d['schema_version']==1 and d['name']=='earthglass'"
+
+  obeos-earth-client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: obeos-earth/pnpm-lock.yaml
+      - run: pnpm --dir obeos-earth install --frozen-lockfile
+      - run: pnpm --dir obeos-earth test
+      - run: pnpm --dir obeos-earth build

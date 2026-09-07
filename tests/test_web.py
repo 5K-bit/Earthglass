@@ -49,6 +49,18 @@ def test_status_identifies_layer_engine() -> None:
     assert response.json()["architecture"] == "geospatial-layer-engine"
 
 
+def test_local_obeos_earth_origin_is_allowed() -> None:
+    response = client.options(
+        "/api/layers/earthquakes/features",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+
 def test_index_remains_demo_surface() -> None:
     response = client.get("/")
     assert response.status_code == 200

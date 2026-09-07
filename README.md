@@ -1,6 +1,6 @@
 # EarthGlass
 
-EarthGlass is the **renderer-agnostic geospatial layer engine** for the OBEOS ecosystem. It owns layer definitions, provider contracts, normalized feature payloads, metadata, and future caching/refresh behavior. It does **not** own the planetary renderer.
+EarthGlass is the **renderer-agnostic geospatial layer engine** for the OBEOS ecosystem. It owns layer definitions, provider contracts, normalized feature payloads, metadata, and caching/refresh behavior. It does **not** own the planetary renderer.
 
 OBEOS Earth is the intended 3D planetary runtime and Cesium client. EarthGlass supplies reusable geospatial information that OBEOS Earth, a CLI, a 2D map, or another client can consume without importing renderer-specific code.
 
@@ -22,11 +22,16 @@ LayerRegistry + LayerDefinition
         +--> OBEOS Earth / Cesium client
 ```
 
-The current Leaflet page remains a lightweight development/demo surface. Leaflet is no longer part of the core layer model.
+The repository now contains two deliberately separated packages:
+
+- `earthglass/` — Python ingestion, validation, cache, lifecycle, CLI, and HTTP API
+- `obeos-earth/` — React/TypeScript/Cesium planetary client consuming that API
+
+The legacy Leaflet page remains a lightweight development surface. Leaflet and Cesium are not part of the EarthGlass core model.
 
 ## Current milestone
 
-Version 0.3 delivers the first live, reusable provider slice:
+Version 0.4 connects the first provider slice to the planetary client:
 
 - renderer-independent `LayerDefinition`
 - central `LayerRegistry`
@@ -39,6 +44,10 @@ Version 0.3 delivers the first live, reusable provider slice:
 - FastAPI and CLI consuming the same core registry
 - feature, refresh, and provider-status API endpoints
 - tests enforcing that serialized layer definitions do not depend on Leaflet or Cesium
+- separate Cesium globe with bundled Natural Earth imagery and no Ion token requirement
+- magnitude-scaled earthquake markers, event details, camera flight, attribution, and status
+- five-minute background refresh plus explicit refresh controls
+- CORS restricted to the local OBEOS Earth development/preview origins by default
 
 ## Layout
 
@@ -61,6 +70,11 @@ earthglass/
     test_web.py
     test_cli.py
   pyproject.toml
+  obeos-earth/
+    src/api.ts        # typed EarthGlass HTTP client
+    src/App.tsx       # Cesium world presentation
+    src/api.test.ts   # client contract tests
+    vite.config.ts    # Cesium runtime assets
   README.md
 ```
 
@@ -109,8 +123,47 @@ HTTP 503; stale external data is never represented as live.
 pytest
 ```
 
+## Run the complete local system
+
+Requirements: Python 3.11+, Node.js 22+, and pnpm.
+
+Install once:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+pnpm --dir obeos-earth install
+```
+
+Start the EarthGlass API in the first terminal:
+
+```powershell
+.\.venv\Scripts\earthglass.exe serve --host 127.0.0.1 --port 8000
+```
+
+Start OBEOS Earth in the second terminal:
+
+```powershell
+pnpm --dir obeos-earth dev
+```
+
+Open `http://127.0.0.1:5173/`. The client reads
+`http://127.0.0.1:8000/api/layers/earthquakes/features` by default. Override
+the API before building or starting the client when needed:
+
+```powershell
+$env:VITE_EARTHGLASS_API_BASE="https://earthglass.example/api"
+```
+
+Frontend verification:
+
+```powershell
+pnpm --dir obeos-earth test
+pnpm --dir obeos-earth build
+```
+
 ## Relationship to OBEOS Earth
 
 **EarthGlass understands geospatial information. OBEOS Earth understands the planet.**
 
-EarthGlass should remain usable without Cesium, React, or the OBEOS Earth frontend. OBEOS Earth can consume EarthGlass APIs and render returned layers on its 3D globe alongside weather, atmosphere, terrain, and time-dependent planetary systems.
+EarthGlass remains usable without Cesium, React, or the OBEOS Earth frontend. OBEOS Earth consumes only the public EarthGlass API and translates normalized observations into Cesium entities. Cesium imports and renderer state remain confined to `obeos-earth/`.

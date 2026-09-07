@@ -3,3 +3,6 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+obeos-earth/dist/
+obeos-earth/node_modules/
+obeos-earth/*.tsbuildinfo

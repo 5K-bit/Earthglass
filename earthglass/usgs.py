@@ -62,6 +62,7 @@ class USGSEarthquakeProvider:
         self._status = ProviderStatus(name=self.name)
         self._memory: FeatureCollection | None = None
         self._lock = Lock()
+        self._generation = 0
 
     @property
     def status(self) -> ProviderStatus:
@@ -90,20 +91,35 @@ class USGSEarthquakeProvider:
                 self._memory = cached
                 self._set_success(cached, serving_cache=True, stale=False)
                 return cached.cached_copy(stale=False, age_seconds=age)
-        return self.refresh(layer_id)
+        return self.refresh(layer_id, force=False)
 
-    def refresh(self, layer_id: str) -> FeatureCollection:
+    def refresh(self, layer_id: str, *, force: bool = True) -> FeatureCollection:
         self._require_layer(layer_id)
+        generation = self._generation
+        cached = self._cached()
+        if cached is not None and self._lock.locked():
+            age = self._age(cached)
+            return cached.cached_copy(stale=age > self.refresh_interval, age_seconds=age)
         with self._lock:
+            cached = self._cached()
+            if generation != self._generation or (not force and cached is not None and self._age(cached) <= self.refresh_interval):
+                if cached is not None:
+                    age = self._age(cached)
+                    return cached.cached_copy(stale=age > self.refresh_interval, age_seconds=age)
+                raise ProviderUnavailable("USGS refresh failed; no valid cache exists")
             attempted_at = isoformat(self.clock())
             self._status.state = "refreshing"
             self._status.last_attempt_at = attempted_at
             try:
                 raw = self.fetcher(USGS_EARTHQUAKES_URL, self.timeout)
                 collection = self._normalize(raw, retrieved_at=attempted_at)
-                self.cache.save(collection)
                 self._memory = collection
                 self._set_success(collection, serving_cache=False, stale=False)
+                try:
+                    self.cache.save(collection)
+                except OSError:
+                    self._status.state = "degraded"
+                    self._status.last_error = "Fresh data available; disk cache could not be saved"
                 return collection
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
@@ -128,6 +144,8 @@ class USGSEarthquakeProvider:
                 raise ProviderUnavailable(
                     "USGS earthquakes are unavailable and no valid cache exists"
                 ) from exc
+            finally:
+                self._generation += 1
 
     def _set_success(
         self, collection: FeatureCollection, *, serving_cache: bool, stale: bool

@@ -9,11 +9,11 @@ const feature = {
     magnitude: 3.1,
     title: "M 3.1 - Test",
     place: "Test location",
-    observed_at: "2026-09-07T12:00:00Z"
+    observed_at: "2026-09-07T12:00:00Z",
   },
   provenance: {
-    source_url: "https://earthquake.usgs.gov/earthquakes/eventpage/test"
-  }
+    source_url: "https://earthquake.usgs.gov/earthquakes/eventpage/test",
+  },
 };
 
 describe("EarthGlass API normalization", () => {
@@ -23,7 +23,7 @@ describe("EarthGlass API normalization", () => {
       longitude: -122.1,
       latitude: 37.4,
       depthKm: 8.2,
-      magnitude: 3.1
+      magnitude: 3.1,
     });
   });
 
@@ -34,8 +34,8 @@ describe("EarthGlass API normalization", () => {
       metadata: {
         generated_at: "2026-09-07T12:01:00Z",
         source: { attribution: "U.S. Geological Survey (USGS)" },
-        cache: { status: "cache", stale: true }
-      }
+        cache: { status: "cache", stale: true },
+      },
     });
     expect(feed.earthquakes).toHaveLength(1);
     expect(feed.cacheStatus).toBe("cache");
@@ -46,8 +46,8 @@ describe("EarthGlass API normalization", () => {
     expect(() =>
       normalizeEarthquakeFeature({
         ...feature,
-        geometry: { type: "Point", coordinates: [200, 37.4] }
-      })
+        geometry: { type: "Point", coordinates: [200, 37.4] },
+      }),
     ).toThrow("coordinates are invalid");
   });
 });

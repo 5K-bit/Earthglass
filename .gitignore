@@ -6,3 +6,5 @@ __pycache__/
 obeos-earth/dist/
 obeos-earth/node_modules/
 obeos-earth/*.tsbuildinfo
+
+/artifacts/

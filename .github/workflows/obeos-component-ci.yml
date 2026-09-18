@@ -21,6 +21,7 @@ jobs:
           cache: pip
       - run: python -m pip install -U pip && python -m pip install -e '.[dev]'
       - run: python -m pytest -q
+      - run: python tools/export_spatial_contracts.py --check
       - name: Validate OBEOS manifest exists
         run: python -c "import json; d=json.load(open('obeos.manifest.json')); assert d['schema_version']==1 and d['name']=='earthglass'"
 
@@ -30,10 +31,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11.19.0
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: pnpm
           cache-dependency-path: obeos-earth/pnpm-lock.yaml
       - run: pnpm --dir obeos-earth install --frozen-lockfile

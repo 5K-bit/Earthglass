@@ -1,5 +1,7 @@
 # OBEOS Master Architecture Plan
 
+> Implementation update (2026-09-11): the approved Earth integration now has spatial providers, history, typed controls and a native Cesium home in the OBEOS working repositories. This document remains the architecture reference. See the OBEOS root [implementation/acceptance record](../../docs/earth-implementation-status.md) and [desktop guide](../../docs/earth-desktop.md) for current capabilities, verified behavior and outstanding credential/platform checks.
+
 ## Purpose
 
 EarthGlass is the geospatial information engine within the OBEOS ecosystem. It is not a separate product from OBEOS and it does not own the planetary renderer.

@@ -73,7 +73,7 @@ export function normalizeEarthquakeFeature(value: unknown): Earthquake {
     title: text(properties.title, "Earthquake"),
     place: text(properties.place),
     observedAt: text(properties.observed_at, "Unknown time"),
-    sourceUrl: text(provenance.source_url, "https://earthquake.usgs.gov/")
+    sourceUrl: text(provenance.source_url, "https://earthquake.usgs.gov/"),
   };
 }
 
@@ -83,7 +83,10 @@ export function normalizeEarthquakeFeed(value: unknown): EarthquakeFeed {
   const source = object(metadata.source, "EarthGlass source metadata");
   const cache = object(metadata.cache, "EarthGlass cache metadata");
 
-  if (collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
+  if (
+    collection.type !== "FeatureCollection" ||
+    !Array.isArray(collection.features)
+  ) {
     throw new Error("EarthGlass response must be a FeatureCollection");
   }
   if (cache.status !== "live" && cache.status !== "cache") {
@@ -95,7 +98,7 @@ export function normalizeEarthquakeFeed(value: unknown): EarthquakeFeed {
     generatedAt: text(metadata.generated_at, "Unknown time"),
     attribution: text(source.attribution, "U.S. Geological Survey (USGS)"),
     cacheStatus: cache.status,
-    stale: cache.stale === true
+    stale: cache.stale === true,
   };
 }
 
@@ -104,11 +107,14 @@ async function requestFeed(method: "GET" | "POST", signal?: AbortSignal) {
   const response = await fetch(`${API_BASE}/layers/earthquakes${suffix}`, {
     method,
     headers: { Accept: "application/json" },
-    signal
+    signal,
   });
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
-    const detail = typeof errorBody.detail === "string" ? errorBody.detail : response.statusText;
+    const detail =
+      typeof errorBody.detail === "string"
+        ? errorBody.detail
+        : response.statusText;
     throw new Error(`EarthGlass ${response.status}: ${detail}`);
   }
   return normalizeEarthquakeFeed(await response.json());

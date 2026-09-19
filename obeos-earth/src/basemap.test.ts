@@ -6,6 +6,10 @@ vi.mock("cesium", () => ({
   Credit: class {},
   UrlTemplateImageryProvider: class {
     errorEvent = event();
+    url: string;
+    constructor(options: { url: string }) {
+      this.url = options.url;
+    }
   },
 }));
 function event() {
@@ -58,10 +62,11 @@ describe("basemap zoom and recovery", () => {
       status = vi.fn();
     const map = new BasemapController(viewer as never, status);
     await map.set("satellite");
-    expect(viewer.layers).toHaveLength(2);
+    expect(viewer.layers).toHaveLength(3);
     for (let n = 0; n < 3; n++) viewer.layers[1].provider.errorEvent.emit();
     expect(viewer.layers[0].show).toBe(true);
     expect(viewer.layers[1].show).toBe(false);
+    expect(viewer.layers[2].show).toBe(false);
     expect(status.mock.lastCall?.[0].state).toBe("fallback");
     await map.set("streets");
     viewer.scene.globe.tileLoadProgressEvent.emit(0);
@@ -69,6 +74,24 @@ describe("basemap zoom and recovery", () => {
     expect(viewer.layers).toHaveLength(2);
     map.destroy();
     expect(viewer.scene.globe.tileLoadProgressEvent.listeners.size).toBe(0);
+  });
+  it("labels satellite imagery and leaves street tiles to their own cartography", async () => {
+    const viewer = scene(),
+      map = new BasemapController(viewer as never, vi.fn());
+    const urls = () =>
+      viewer.layers.map(
+        (l) => (l.provider as unknown as { url?: string }).url ?? "",
+      );
+    await map.set("satellite");
+    expect(
+      urls().filter((u) => u.includes("World_Boundaries_and_Places")),
+    ).toHaveLength(1);
+    await map.set("streets");
+    expect(viewer.layers).toHaveLength(2);
+    expect(
+      urls().filter((u) => u.includes("World_Boundaries_and_Places")),
+    ).toHaveLength(0);
+    map.destroy();
   });
   it("does not create remote imagery for offline startup", async () => {
     const viewer = scene(),

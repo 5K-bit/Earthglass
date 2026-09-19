@@ -9,6 +9,7 @@ import type { Basemap, MapStatus } from "./mapChoice";
 export class BasemapController {
   private epoch = 0;
   private overlay?: ImageryLayer;
+  private reference?: ImageryLayer;
   private cleanup = () => {};
   private base: Promise<void>;
   constructor(
@@ -39,6 +40,9 @@ export class BasemapController {
     try {
       await this.base;
       if (epoch !== this.epoch || this.viewer.isDestroyed()) return;
+      if (this.reference)
+        this.viewer.imageryLayers.remove(this.reference, true);
+      this.reference = undefined;
       if (this.overlay) this.viewer.imageryLayers.remove(this.overlay, true);
       this.overlay = undefined;
       if (mode === "offline") {
@@ -62,6 +66,18 @@ export class BasemapController {
       this.overlay = layer;
       layer.brightness = mode === "satellite" ? 0.9 : 0.8;
       layer.saturation = 0.65;
+      if (mode === "satellite") {
+        this.reference = this.viewer.imageryLayers.addImageryProvider(
+          new UrlTemplateImageryProvider({
+            url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            maximumLevel: 19,
+            credit: new Credit(
+              "Esri, Garmin, FAO, NOAA, USGS · boundaries and place names",
+              true,
+            ),
+          }),
+        );
+      }
       let retry: ReturnType<typeof setTimeout> | undefined;
       let failures = 0,
         settled = false;
@@ -69,6 +85,7 @@ export class BasemapController {
         if (epoch !== this.epoch || this.viewer.isDestroyed()) return;
         settled = true;
         layer.show = false;
+        if (this.reference) this.reference.show = false;
         clearTimeout(retry);
         retry = setTimeout(() => {
           void this.set(mode);

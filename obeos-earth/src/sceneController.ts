@@ -76,6 +76,7 @@ import {
   observationVisibleAt,
 } from "./observationFreshness";
 import { BasemapController } from "./basemap";
+import { ReferenceLabels } from "./referenceLabels";
 import { ImageryController, type ImageryProduct } from "./imageryController";
 import type { Basemap, MapStatus } from "./mapChoice";
 import {
@@ -111,6 +112,7 @@ export class SceneController {
   private distance = 5000;
   private destroyed = false;
   private basemap: BasemapController;
+  private referenceLabels: ReferenceLabels;
   private imagery?: ImageryController;
   private presence?: PresenceRenderer;
   private privateSelection?: (id: string) => void;
@@ -264,6 +266,7 @@ export class SceneController {
       }
     }, 5000);
     this.basemap = new BasemapController(this.viewer, onMapStatus);
+    this.referenceLabels = new ReferenceLabels(this.viewer, onError);
   }
   private position(o: Observation) {
     // Depth is never rendered as aviation altitude. Unknown altitude stays a surface glyph.
@@ -962,6 +965,7 @@ export class SceneController {
     this.presence?.destroy();
     this.imagery?.destroy();
     this.basemap.destroy();
+    this.referenceLabels.destroy();
     this.viewer.destroy();
   }
 }

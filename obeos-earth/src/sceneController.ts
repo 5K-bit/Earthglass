@@ -266,7 +266,13 @@ export class SceneController {
       }
     }, 5000);
     this.basemap = new BasemapController(this.viewer, onMapStatus);
-    this.referenceLabels = new ReferenceLabels(this.viewer, onError);
+    // Local vector labels are preferred. Esri reference tiles stand in only when
+    // the reference package is absent, so labels never disappear entirely.
+    this.referenceLabels = new ReferenceLabels(
+      this.viewer,
+      onError,
+      (available) => this.basemap.setReferenceFallback(!available),
+    );
   }
   private position(o: Observation) {
     // Depth is never rendered as aviation altitude. Unknown altitude stays a surface glyph.

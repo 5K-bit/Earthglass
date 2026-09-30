@@ -20,7 +20,13 @@ export class ReferenceLabels {
   private boundaries = new GeoJsonDataSource("reference-boundaries");
   private removeMove: () => void;
 
-  constructor(private viewer: Viewer, private report: (message: string) => void) {
+  constructor(
+    private viewer: Viewer,
+    private report: (message: string) => void,
+    /** Reports whether the local reference package answered, so a caller can
+     *  stand in for it. Keyed on labels; boundaries alone are not cartography. */
+    private onAvailability?: (available: boolean) => void,
+  ) {
     void viewer.dataSources.add(this.source);
     this.removeMove = viewer.camera.moveEnd.addEventListener(() => this.render());
     void this.load();
@@ -60,8 +66,11 @@ export class ReferenceLabels {
         (b.properties.category === "cities" ? 1 : 0) ||
         a.properties.rank - b.properties.rank);
       this.render();
+      this.onAvailability?.(true);
     } catch {
-      if (!this.disposed) this.report("Offline reference labels unavailable; install the global reference package.");
+      if (this.disposed) return;
+      this.report("Offline reference labels unavailable; install the global reference package.");
+      this.onAvailability?.(false);
     }
   }
 

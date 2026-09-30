@@ -10,6 +10,9 @@ export class BasemapController {
   private epoch = 0;
   private overlay?: ImageryLayer;
   private reference?: ImageryLayer;
+  private mode?: Exclude<Basemap, "auto">;
+  /** Esri reference tiles stand in only while the local reference package is absent. */
+  private referenceFallback = false;
   private cleanup = () => {};
   private base: Promise<void>;
   constructor(
@@ -28,6 +31,7 @@ export class BasemapController {
   }
   async set(mode: Exclude<Basemap, "auto">) {
     const epoch = ++this.epoch;
+    this.mode = mode;
     this.cleanup();
     this.changed({
       mode,
@@ -40,9 +44,7 @@ export class BasemapController {
     try {
       await this.base;
       if (epoch !== this.epoch || this.viewer.isDestroyed()) return;
-      if (this.reference)
-        this.viewer.imageryLayers.remove(this.reference, true);
-      this.reference = undefined;
+      this.removeReference();
       if (this.overlay) this.viewer.imageryLayers.remove(this.overlay, true);
       this.overlay = undefined;
       if (mode === "offline") {
@@ -66,18 +68,7 @@ export class BasemapController {
       this.overlay = layer;
       layer.brightness = mode === "satellite" ? 0.9 : 0.8;
       layer.saturation = 0.65;
-      if (mode === "satellite") {
-        this.reference = this.viewer.imageryLayers.addImageryProvider(
-          new UrlTemplateImageryProvider({
-            url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-            maximumLevel: 19,
-            credit: new Credit(
-              "Esri, Garmin, FAO, NOAA, USGS · boundaries and place names",
-              true,
-            ),
-          }),
-        );
-      }
+      this.applyReference();
       let retry: ReturnType<typeof setTimeout> | undefined;
       let failures = 0,
         settled = false;
@@ -156,6 +147,40 @@ export class BasemapController {
           message: "Map could not load. Reload Earth to retry.",
         });
     }
+  }
+  /** Called with true when the local reference package failed to load. */
+  setReferenceFallback(enabled: boolean) {
+    if (this.referenceFallback === enabled) return;
+    this.referenceFallback = enabled;
+    // Add or drop only the reference layer. Re-running set() would rebuild the
+    // imagery layer and flash the globe.
+    this.applyReference();
+    if (!this.viewer.isDestroyed()) this.viewer.scene.requestRender();
+  }
+  private applyReference() {
+    const wanted =
+      this.referenceFallback && this.mode === "satellite" && !!this.overlay;
+    if (!wanted) {
+      this.removeReference();
+      return;
+    }
+    if (this.reference || this.viewer.isDestroyed()) return;
+    this.reference = this.viewer.imageryLayers.addImageryProvider(
+      new UrlTemplateImageryProvider({
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        maximumLevel: 19,
+        credit: new Credit(
+          "Esri, Garmin, FAO, NOAA, USGS · boundaries and place names",
+          true,
+        ),
+      }),
+    );
+    this.reference.show = this.overlay?.show ?? true;
+  }
+  private removeReference() {
+    if (this.reference && !this.viewer.isDestroyed())
+      this.viewer.imageryLayers.remove(this.reference, true);
+    this.reference = undefined;
   }
   destroy() {
     ++this.epoch;

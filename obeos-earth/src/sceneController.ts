@@ -265,14 +265,14 @@ export class SceneController {
           this.reportViewport();
       }
     }, 5000);
-    this.basemap = new BasemapController(this.viewer, onMapStatus);
-    // Local vector labels are preferred. Esri reference tiles stand in only when
-    // the reference package is absent, so labels never disappear entirely.
-    this.referenceLabels = new ReferenceLabels(
-      this.viewer,
-      onError,
-      (available) => this.basemap.setReferenceFallback(!available),
-    );
+    // Online basemaps carry tiled cartography with a per-zoom label hierarchy.
+    // The bundled Natural Earth labels are the offline floor, so they draw only
+    // in offline mode and the two sets never appear together.
+    this.basemap = new BasemapController(this.viewer, (status) => {
+      this.referenceLabels?.setEnabled(status.mode === "offline");
+      onMapStatus(status);
+    });
+    this.referenceLabels = new ReferenceLabels(this.viewer, onError);
   }
   private position(o: Observation) {
     // Depth is never rendered as aviation altitude. Unknown altitude stays a surface glyph.

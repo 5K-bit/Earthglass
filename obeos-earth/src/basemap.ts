@@ -9,10 +9,8 @@ import type { Basemap, MapStatus } from "./mapChoice";
 export class BasemapController {
   private epoch = 0;
   private overlay?: ImageryLayer;
-  private reference?: ImageryLayer;
+  private references: ImageryLayer[] = [];
   private mode?: Exclude<Basemap, "auto">;
-  /** Esri reference tiles stand in only while the local reference package is absent. */
-  private referenceFallback = false;
   private cleanup = () => {};
   private base: Promise<void>;
   constructor(
@@ -44,7 +42,7 @@ export class BasemapController {
     try {
       await this.base;
       if (epoch !== this.epoch || this.viewer.isDestroyed()) return;
-      this.removeReference();
+      this.removeReferences();
       if (this.overlay) this.viewer.imageryLayers.remove(this.overlay, true);
       this.overlay = undefined;
       if (mode === "offline") {
@@ -68,7 +66,7 @@ export class BasemapController {
       this.overlay = layer;
       layer.brightness = mode === "satellite" ? 0.9 : 0.8;
       layer.saturation = 0.65;
-      this.applyReference();
+      this.applyReferences();
       let retry: ReturnType<typeof setTimeout> | undefined;
       let failures = 0,
         settled = false;
@@ -76,7 +74,7 @@ export class BasemapController {
         if (epoch !== this.epoch || this.viewer.isDestroyed()) return;
         settled = true;
         layer.show = false;
-        if (this.reference) this.reference.show = false;
+        for (const reference of this.references) reference.show = false;
         clearTimeout(retry);
         retry = setTimeout(() => {
           void this.set(mode);
@@ -148,39 +146,40 @@ export class BasemapController {
         });
     }
   }
-  /** Called with true when the local reference package failed to load. */
-  setReferenceFallback(enabled: boolean) {
-    if (this.referenceFallback === enabled) return;
-    this.referenceFallback = enabled;
-    // Add or drop only the reference layer. Re-running set() would rebuild the
-    // imagery layer and flash the globe.
-    this.applyReference();
-    if (!this.viewer.isDestroyed()) this.viewer.scene.requestRender();
-  }
-  private applyReference() {
-    const wanted =
-      this.referenceFallback && this.mode === "satellite" && !!this.overlay;
-    if (!wanted) {
-      this.removeReference();
+  /** Tiled cartography over satellite imagery. The tile server renders a label
+   *  hierarchy per zoom level, which is where the appear-on-zoom behaviour comes
+   *  from; the bundled Natural Earth table has no street or neighbourhood rows to
+   *  show at close range. Street tiles already carry their own labels. */
+  private static readonly REFERENCE_LAYERS = [
+    {
+      service: "World_Boundaries_and_Places",
+      credit: "Esri, Garmin, FAO, NOAA, USGS · boundaries and place names",
+    },
+    {
+      service: "World_Transportation",
+      credit: "Esri, HERE, Garmin, NGA, USGS · roads and road names",
+    },
+  ];
+  private applyReferences() {
+    if (this.mode !== "satellite" || !this.overlay || this.viewer.isDestroyed())
       return;
+    for (const { service, credit } of BasemapController.REFERENCE_LAYERS) {
+      const layer = this.viewer.imageryLayers.addImageryProvider(
+        new UrlTemplateImageryProvider({
+          url: `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/${service}/MapServer/tile/{z}/{y}/{x}`,
+          maximumLevel: 19,
+          credit: new Credit(credit, true),
+        }),
+      );
+      layer.show = this.overlay.show;
+      this.references.push(layer);
     }
-    if (this.reference || this.viewer.isDestroyed()) return;
-    this.reference = this.viewer.imageryLayers.addImageryProvider(
-      new UrlTemplateImageryProvider({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        maximumLevel: 19,
-        credit: new Credit(
-          "Esri, Garmin, FAO, NOAA, USGS · boundaries and place names",
-          true,
-        ),
-      }),
-    );
-    this.reference.show = this.overlay?.show ?? true;
   }
-  private removeReference() {
-    if (this.reference && !this.viewer.isDestroyed())
-      this.viewer.imageryLayers.remove(this.reference, true);
-    this.reference = undefined;
+  private removeReferences() {
+    if (!this.viewer.isDestroyed())
+      for (const reference of this.references)
+        this.viewer.imageryLayers.remove(reference, true);
+    this.references = [];
   }
   destroy() {
     ++this.epoch;

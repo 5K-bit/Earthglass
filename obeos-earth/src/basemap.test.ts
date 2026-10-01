@@ -62,10 +62,12 @@ describe("basemap zoom and recovery", () => {
       status = vi.fn();
     const map = new BasemapController(viewer as never, status);
     await map.set("satellite");
-    expect(viewer.layers).toHaveLength(2);
+    expect(viewer.layers).toHaveLength(4);
     for (let n = 0; n < 3; n++) viewer.layers[1].provider.errorEvent.emit();
     expect(viewer.layers[0].show).toBe(true);
-    expect(viewer.layers[1].show).toBe(false);
+    // Imagery and both reference overlays hide together, so labels cannot float
+    // over the bundled overview they do not match.
+    expect(viewer.layers.slice(1).every((l) => !l.show)).toBe(true);
     expect(status.mock.lastCall?.[0].state).toBe("fallback");
     await map.set("streets");
     viewer.scene.globe.tileLoadProgressEvent.emit(0);
@@ -74,28 +76,29 @@ describe("basemap zoom and recovery", () => {
     map.destroy();
     expect(viewer.scene.globe.tileLoadProgressEvent.listeners.size).toBe(0);
   });
-  it("stands in for the local reference package only while it is missing", async () => {
+  it("carries tiled cartography over imagery and leaves street tiles alone", async () => {
     const viewer = scene(),
       map = new BasemapController(viewer as never, vi.fn());
-    const refs = () =>
-      viewer.layers.filter((l) =>
-        ((l.provider as unknown as { url?: string }).url ?? "").includes(
-          "World_Boundaries_and_Places",
-        ),
+    const urls = () =>
+      viewer.layers.map(
+        (l) => (l.provider as unknown as { url?: string }).url ?? "",
       );
+    const has = (service: string) =>
+      urls().filter((u) => u.includes(service)).length;
     await map.set("satellite");
-    expect(refs()).toHaveLength(0);
-    const imagery = viewer.layers[1];
-    map.setReferenceFallback(true);
-    expect(refs()).toHaveLength(1);
-    // The imagery layer must survive: adding labels may not reload the globe.
-    expect(viewer.layers[1]).toBe(imagery);
-    map.setReferenceFallback(false);
-    expect(refs()).toHaveLength(0);
-    map.setReferenceFallback(true);
+    expect(viewer.layers).toHaveLength(4);
+    expect(has("World_Boundaries_and_Places")).toBe(1);
+    expect(has("World_Transportation")).toBe(1);
+    // Street tiles render their own labels; a second set would double them.
     await map.set("streets");
     expect(viewer.layers).toHaveLength(2);
-    expect(refs()).toHaveLength(0);
+    expect(has("World_Boundaries_and_Places")).toBe(0);
+    expect(has("World_Transportation")).toBe(0);
+    // Switching back must not accumulate duplicates.
+    await map.set("satellite");
+    expect(viewer.layers).toHaveLength(4);
+    await map.set("offline");
+    expect(viewer.layers).toHaveLength(1);
     map.destroy();
   });
   it("does not create remote imagery for offline startup", async () => {
@@ -113,6 +116,7 @@ it("retries public tiles after an outage and cancels recovery in offline mode", 
     map = new BasemapController(viewer as never, vi.fn());
   try {
     await map.set("satellite");
+    expect(viewer.layers).toHaveLength(4);
     const failed = viewer.layers[1];
     for (let n = 0; n < 3; n++) failed.provider.errorEvent.emit();
     await vi.advanceTimersByTimeAsync(60000);

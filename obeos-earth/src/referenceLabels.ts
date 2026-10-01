@@ -23,9 +23,6 @@ export class ReferenceLabels {
   constructor(
     private viewer: Viewer,
     private report: (message: string) => void,
-    /** Reports whether the local reference package answered, so a caller can
-     *  stand in for it. Keyed on labels; boundaries alone are not cartography. */
-    private onAvailability?: (available: boolean) => void,
   ) {
     void viewer.dataSources.add(this.source);
     this.removeMove = viewer.camera.moveEnd.addEventListener(() => this.render());
@@ -66,11 +63,9 @@ export class ReferenceLabels {
         (b.properties.category === "cities" ? 1 : 0) ||
         a.properties.rank - b.properties.rank);
       this.render();
-      this.onAvailability?.(true);
     } catch {
       if (this.disposed) return;
       this.report("Offline reference labels unavailable; install the global reference package.");
-      this.onAvailability?.(false);
     }
   }
 
@@ -105,10 +100,10 @@ export class ReferenceLabels {
         retained.add(id);
         if (!this.source.entities.getById(id)) this.source.entities.add({
           id, position,
-          label: { text: p.name, font: p.category === "cities" ? "12px sans-serif" : "14px sans-serif",
+          label: { text: p.name, font: p.category === "cities" ? "bold 13px sans-serif" : "bold 15px sans-serif",
             fillColor: p.category === "oceans" ? Color.LIGHTBLUE : Color.WHITE,
-            style: LabelStyle.FILL_AND_OUTLINE, outlineColor: Color.BLACK,
-            outlineWidth: 3, pixelOffset: new Cartesian2(0, -8) },
+            style: LabelStyle.FILL_AND_OUTLINE, outlineColor: Color.BLACK.withAlpha(0.85),
+            outlineWidth: 4, pixelOffset: new Cartesian2(0, -8) },
         });
         if (occupied.length >= 250) break;
       }
@@ -119,6 +114,15 @@ export class ReferenceLabels {
     scene.requestRender();
   }
 
+  /** Off while the tiled reference overlays carry the labels, so the two label
+   *  sets never draw together. Data sources stay loaded, so it is reversible. */
+  setEnabled(enabled: boolean) {
+    if (this.disposed || this.viewer.isDestroyed()) return;
+    if (this.source.show === enabled) return;
+    this.source.show = enabled;
+    this.boundaries.show = enabled;
+    this.viewer.scene.requestRender();
+  }
   destroy() {
     this.disposed = true;
     this.abort.abort();

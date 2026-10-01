@@ -635,3 +635,58 @@ pre {
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Operator chat. Opaque like every other panel - see the note above; no
+   backdrop-filter. */
+.chat {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 46vh;
+  overflow: auto;
+  scrollbar-width: thin;
+  /* Keep a drag that runs past the end of the log out of Cesium's hands; the
+     globe owns pan and pinch on the canvas and there is no arbitration between
+     them. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.chat-turn small {
+  color: #b19c74;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.chat-turn p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-turn.user p {
+  color: #e0bd81;
+}
+.chat-turn.system p {
+  color: #93a3b0;
+  font-style: italic;
+}
+
+/* The operator's machine is a touchscreen. Nothing else in this stylesheet
+   raises hit targets, so this block is scoped to coarse pointers only and
+   leaves mouse layout untouched. */
+@media (pointer: coarse) {
+  .chat textarea {
+    min-height: 72px;
+    font-size: 15px;
+  }
+  .chat button,
+  .chat .panel-title > button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

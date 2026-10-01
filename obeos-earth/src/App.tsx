@@ -19,6 +19,7 @@ import { PresencePanel } from "./PresencePanel";
 import { inViewport } from "./visibleDetail";
 import { MobilityPanel } from "./MobilityPanel";
 import { ObservationDetails } from "./ObservationDetails";
+import { ChatPanel } from "./ChatPanel";
 import { restoreSceneContacts } from "./restoreSceneContacts";
 
 type Situation = {
@@ -115,6 +116,7 @@ function App() {
   const [connection, setConnection] = useState("Connecting");
   const [layersOpen, setLayersOpen] = useState(true);
   const [daiseOpen, setDaiseOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const diagnosticsRef = useRef(false);
   diagnosticsRef.current = diagnosticsOpen;
@@ -673,6 +675,12 @@ function App() {
           <button type="submit">Enter ↵</button>
         </form>
         <button
+          className={chatOpen ? "active" : ""}
+          onClick={() => setChatOpen(!chatOpen)}
+        >
+          Chat <span className="cyan">◗</span>
+        </button>
+        <button
           className={daiseOpen ? "active" : ""}
           onClick={() => setDaiseOpen(!daiseOpen)}
         >
@@ -916,6 +924,7 @@ function App() {
         </aside>
       )}
       <div className={"right-stack " + (daiseOpen ? "expanded" : "")}>
+        {chatOpen && <ChatPanel onClose={() => setChatOpen(false)} />}
         {selected && (
           <aside className="inspector panel">
             <div className="panel-title">

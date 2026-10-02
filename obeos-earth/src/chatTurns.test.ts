@@ -54,6 +54,14 @@ describe("chat turn shaping", () => {
     ).toContain("Another surface is mid-turn");
   });
 
+  it("says the model backend is down rather than echoing a raw error", () => {
+    for (const error_type of ["endpoint_not_ready", "startup_failed"]) {
+      expect(
+        noticeFrom({ status: "error", error_type, error: "not ready" }),
+      ).toContain("llama-server) is not running");
+    }
+  });
+
   it("surfaces a failure reason, and says something when there is none", () => {
     expect(noticeFrom({ status: "error", error: "model unavailable" })).toBe(
       "model unavailable",

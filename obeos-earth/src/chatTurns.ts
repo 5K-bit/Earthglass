@@ -64,6 +64,9 @@ export function turnsFrom(reply: ChatReply): ChatTurn[] {
 export function noticeFrom(reply: ChatReply): string {
   if (reply.error_type === "session_busy")
     return "Another surface is mid-turn on this session. Wait for it to finish, then send again.";
+  // A down model is an outage to fix, not a reply to read.
+  if (reply.error_type === "endpoint_not_ready" || reply.error_type === "startup_failed")
+    return "The local model backend (llama-server) is not running. Start it, then send again.";
   const failure = text(reply.error) || text(reply.result?.error);
   if (reply.status === "error") return failure || "That turn did not complete.";
   if (failure) return failure;

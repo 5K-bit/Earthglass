@@ -7,12 +7,16 @@ import tempfile
 from earthglass.reference_import import file_record
 
 
-def prepare(root: Path, output: Path):
+def prepare(root: Path, output: Path, *, include_us_states: bool = False):
     import shapefile
     from shapely.geometry import shape, mapping
     features, sources = [], []
-    for stem, disputed in (("ne_10m_admin_0_boundary_lines_land", False),
-                           ("ne_10m_admin_0_boundary_lines_disputed_areas", True)):
+    datasets = [("ne_10m_admin_0_boundary_lines_land", False),
+                ("ne_10m_admin_0_boundary_lines_disputed_areas", True)]
+    if include_us_states:
+        datasets.append(("ne_10m_admin_1_states_provinces", False))
+    for stem, disputed in datasets:
+        state_layer = stem == "ne_10m_admin_1_states_provinces"
         paths = sorted(root.rglob(stem + ".shp"))
         if not paths:
             raise ValueError(f"Missing dataset: {stem}")
@@ -25,21 +29,29 @@ def prepare(root: Path, output: Path):
         count = 0
         with shapefile.Reader(str(path), encoding="utf-8") as reader:
             for item in reader.iterShapeRecords():
+                record = item.record.as_dict()
+                if state_layer and record.get("adm0_a3") != "USA":
+                    continue
                 geometry = shape(item.shape.__geo_interface__)
                 if geometry.is_empty:
                     continue
+                if state_layer:
+                    if geometry.geom_type not in {"Polygon", "MultiPolygon"}:
+                        raise ValueError("Expected state polygons")
+                    geometry = geometry.boundary
                 if geometry.geom_type not in {"LineString", "MultiLineString"}:
                     raise ValueError("Expected boundary lines")
                 features.append({"type": "Feature", "id": f"{stem}:{count}",
                     "geometry": mapping(geometry.simplify(0.02, preserve_topology=True)),
                     "properties": {"disputed": disputed,
-                        "classification": item.record.as_dict().get("featurecla", "boundary")}})
+                        "classification": "us_state" if state_layer else record.get("featurecla", "boundary"),
+                        "name": record.get("name", "") if state_layer else ""}})
                 count += 1
         if not count:
             raise ValueError(f"Empty dataset: {stem}")
         sources.append({"dataset": stem, "features": count, "files": [file_record(p) for p in files]})
     data = {"type": "FeatureCollection", "features": features,
-            "metadata": {"coverage": "worldwide land borders", "simplification_degrees": 0.02,
+            "metadata": {"coverage": "worldwide land borders" + (" and US state outlines" if include_us_states else ""), "simplification_degrees": 0.02,
                 "attribution": "Natural Earth (public domain)", "sources": sources}}
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
@@ -58,5 +70,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--include-us-states", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(prepare(args.root, args.output)))
+    print(json.dumps(prepare(args.root, args.output, include_us_states=args.include_us_states)))

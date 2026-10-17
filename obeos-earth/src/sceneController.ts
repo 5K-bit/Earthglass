@@ -38,6 +38,7 @@ import type { SceneState, Annotation } from "./controlApi";
 import { isNewer } from "./controlApi";
 import { reconcile } from "./contactIndex";
 import { RenderGovernor } from "./renderGovernor";
+import { needsLocalReferenceLabels } from "./mapChoice";
 
 const colors: Record<string, string> = {
   aircraft: "#7ee0ea",
@@ -267,9 +268,9 @@ export class SceneController {
     }, 5000);
     // Online basemaps carry tiled cartography with a per-zoom label hierarchy.
     // The bundled Natural Earth labels are the offline floor, so they draw only
-    // in offline mode and the two sets never appear together.
+      // in offline mode or after tile failure, without duplicating online labels.
     this.basemap = new BasemapController(this.viewer, (status) => {
-      this.referenceLabels?.setEnabled(status.mode === "offline");
+      this.referenceLabels?.setEnabled(needsLocalReferenceLabels(status));
       onMapStatus(status);
     });
     this.referenceLabels = new ReferenceLabels(this.viewer, onError);

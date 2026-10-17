@@ -1,6 +1,11 @@
 from earthglass.reference_import import label_feature
 
 
+def test_state_name_distinguishes_dc_from_washington_state():
+    feature = label_feature({"name": "District of Columbia", "name_en": "Washington"}, "states", [-77, 39])
+    assert feature["properties"]["name"] == "District of Columbia"
+
+
 def test_country_uses_label_coordinates_instead_of_boundary_vertex():
     feature = label_feature({"NAME_EN": "Brazil", "LABEL_X": -53, "LABEL_Y": -10}, "countries")
     assert feature["geometry"]["coordinates"] == [-53, -10]

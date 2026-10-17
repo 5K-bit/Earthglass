@@ -4,6 +4,9 @@ export type MapStatus = {
   state: "loading" | "ready" | "offline" | "fallback";
   message: string;
 };
+export function needsLocalReferenceLabels(status: MapStatus): boolean {
+  return status.mode === "offline" || status.state === "fallback";
+}
 export function resolveBasemap(
   preference: Basemap,
   offline: boolean,

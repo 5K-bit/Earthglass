@@ -80,6 +80,7 @@ export class ReferenceLabels {
     try {
       for (const feature of this.features) {
         const p = feature.properties;
+        if (p.category === "states" && (altitude > 5e6 || altitude < 5e4)) continue;
         if (p.category === "cities" && p.rank > (altitude > 5e6 ? 1 : altitude > 1e6 ? 4 : 10)) continue;
         const [lon, lat] = feature.geometry.coordinates;
         if (bounds) {

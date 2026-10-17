@@ -24,6 +24,8 @@ def file_record(path: Path) -> dict:
 def label_feature(record: dict, category: str, point=None):
     values = {str(k).lower(): v for k, v in record.items()}
     name = values.get("name_en") or values.get("name") or values.get("admin")
+    if category == "states":
+        name = values.get("name") or name
     lon = values.get("label_x", values.get("longitude"))
     lat = values.get("label_y", values.get("latitude"))
     if (lon is None or lat is None) and point is not None:
@@ -45,12 +47,15 @@ def label_feature(record: dict, category: str, point=None):
     }
 
 
-def prepare(roots: list[Path], output: Path) -> dict:
+def prepare(roots: list[Path], output: Path, *, include_us_states: bool = False) -> dict:
     import shapefile  # Optional preparation dependency; not needed to serve maps.
     from shapely.geometry import shape
 
     features, sources = [], []
-    for category, stem in LAYERS.items():
+    layers = dict(LAYERS)
+    if include_us_states:
+        layers["states"] = "ne_10m_admin_1_states_provinces"
+    for category, stem in layers.items():
         candidates = sorted({p.resolve() for root in roots for p in root.rglob(stem + ".shp")})
         if not candidates:
             raise ValueError(f"Missing required worldwide dataset: {stem}")
@@ -64,15 +69,18 @@ def prepare(roots: list[Path], output: Path) -> dict:
         count, rejected = 0, 0
         with shapefile.Reader(str(source), encoding="utf-8") as reader:
             for item in reader.iterShapeRecords():
+                record = item.record.as_dict()
+                if category == "states" and record.get("adm0_a3") != "USA":
+                    continue
                 point = item.shape.points[0] if item.shape.shapeType == 1 else None
-                if category == "oceans" and item.shape.points:
+                if category in {"oceans", "states"} and item.shape.points:
                     geometry = shape(item.shape.__geo_interface__)
                     if not geometry.is_empty:
                         if geometry.geom_type == "MultiPolygon":
                             geometry = max(geometry.geoms, key=lambda polygon: polygon.area)
                         position = geometry.representative_point()
                         point = [position.x, position.y]
-                feature = label_feature(item.record.as_dict(), category, point)
+                feature = label_feature(record, category, point)
                 if feature is None:
                     rejected += 1
                     continue
@@ -107,8 +115,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, action="append", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--include-us-states", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(prepare(args.root, args.output), indent=2))
+    print(json.dumps(prepare(args.root, args.output, include_us_states=args.include_us_states), indent=2))
 
 
 if __name__ == "__main__":

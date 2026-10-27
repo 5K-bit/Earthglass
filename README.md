@@ -1,4 +1,10 @@
+<div align="center">
+  <img src="assets/brand/github-banner.svg" alt="EarthGlass — Geospatial information, independent of the renderer" width="1200">
+</div>
+
 # EarthGlass
+
+[Installation](#installation) · [Current milestone](#current-milestone) · [Run the complete local system](#run-the-complete-local-system)
 
 EarthGlass is the **renderer-agnostic geospatial layer engine** for the OBEOS ecosystem. It owns layer definitions, provider contracts, normalized feature payloads, metadata, and caching/refresh behavior. It does **not** own the planetary renderer.
 

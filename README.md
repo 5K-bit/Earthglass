@@ -186,3 +186,7 @@ pnpm --dir obeos-earth build
 **EarthGlass understands geospatial information. OBEOS Earth understands the planet.**
 
 EarthGlass remains usable without Cesium, React, or the OBEOS Earth frontend. OBEOS Earth consumes only the public EarthGlass API and translates normalized observations into Cesium entities. Cesium imports and renderer state remain confined to `obeos-earth/`.
+
+## Terminal identity
+
+`earthglass --version` prints the installed version (source version when running an uninstalled checkout). Help identifies EarthGlass as a Blackfong project. Interactive commands display a compact product banner on stderr; automatic banners are suppressed when either output stream is redirected. Use `--no-banner` to suppress it or `--banner` before a subcommand to request it explicitly. `NO_COLOR` and `TERM=dumb` disable banner colors. Command output, exit codes, and operational status labels retain their meaning.

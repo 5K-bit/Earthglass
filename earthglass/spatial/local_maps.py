@@ -70,8 +70,12 @@ def map_router(root: Path):
 
     @router.get("/maps/nyc/{asset:path}")
     def asset(asset: str):
-        path = (root / asset).resolve()
-        if not path.is_relative_to(root) or path.is_symlink() or path.suffix not in {".pbf", ".png", ".json"} or not path.is_file():
+        candidate = root / asset
+        # Inspect the requested path before resolve() erases symlink identity.
+        if any(part.is_symlink() for part in (candidate, *candidate.parents)):
+            raise HTTPException(404, "Map asset unavailable")
+        path = candidate.resolve()
+        if not path.is_relative_to(root) or path.suffix not in {".pbf", ".png", ".json"} or not path.is_file():
             raise HTTPException(404, "Map asset unavailable")
         return FileResponse(path)
 

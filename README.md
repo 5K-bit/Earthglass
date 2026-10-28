@@ -1,10 +1,23 @@
 <div align="center">
-  <img src="assets/brand/github-banner.svg" alt="EarthGlass — Geospatial information, independent of the renderer" width="1200">
+
+<img src="assets/brand/github-banner.svg" alt="EarthGlass — Geospatial information, independent of the renderer. A Blackfong project." width="1200">
+
+**Geospatial information, independent of the renderer.**
+
+![Stage](https://img.shields.io/badge/stage-Provider%20and%20globe%20integration-83bfa9?style=for-the-badge&labelColor=0c1220)
+[![CI](https://img.shields.io/github/actions/workflow/status/5K-bit/Earthglass/obeos-component-ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=0c1220&color=83bfa9)](https://github.com/5K-bit/Earthglass/actions/workflows/obeos-component-ci.yml)
+
+[Installation](#installation) · [API](#api) · [CLI](#cli) · [Local system](#run-the-complete-local-system)
+
 </div>
+
+---
 
 # EarthGlass
 
-[Installation](#installation) · [Current milestone](#current-milestone) · [Run the complete local system](#run-the-complete-local-system)
+| Ingest | Preserve | Present |
+|---|---|---|
+| Provider contracts and normalized GeoJSON | Provenance, cache and freshness metadata | HTTP API, CLI and OBEOS Earth client |
 
 EarthGlass is the **renderer-agnostic geospatial layer engine** for the OBEOS ecosystem. It owns layer definitions, provider contracts, normalized feature payloads, metadata, and caching/refresh behavior. It does **not** own the planetary renderer.
 

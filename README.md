@@ -181,6 +181,58 @@ pnpm --dir obeos-earth test
 pnpm --dir obeos-earth build
 ```
 
+## What works today
+
+**Implemented and tested**
+
+- USGS earthquake provider: validated normalization, per-feature provenance, atomic disk cache.
+- Fresh / stale / unavailable reporting through the API (`docs/FRESHNESS.md`), replayable offline with `tools/freshness_demo.py`.
+- Single-flight refresh under concurrent requests; fresh data kept when the cache write fails.
+- FastAPI and CLI over the same registry; OBEOS Earth client tests (`pnpm --dir obeos-earth test`).
+
+**Known limitations**
+
+- Freshness replay covers the earthquake provider only; see "Remaining limits" in `docs/FRESHNESS.md`.
+- Provider `state` stays `ready` for an aged cache until a request refreshes it.
+- No automated browser test of the globe.
+
+**Planned**
+
+- Screenshots of the client in each freshness state.
+
+## Quick start (no network needed)
+
+Prerequisites: Python 3.11+.
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python tools/freshness_demo.py
+```
+
+Expected: pytest ends with `137 passed, 2 skipped`; the demo prints an 8-row table whose rows 3-5 read `cache | True` with provider `degraded`, and rows 7-8 read `503`.
+
+Troubleshooting: if `pytest` fails during collection with a missing `PIL`, install the `dev` extra (`pip install -e ".[dev]"`). If the demo cannot bind a port, it picks a free one; check for a local firewall blocking `127.0.0.1`.
+
+## Architecture in brief
+
+A provider adapter fetches and validates upstream data into `NormalizedFeature`s, the `FeatureCache` persists the last valid collection, and the provider decides per request whether to serve live, fresh-cached, stale-cached or fail. FastAPI and the CLI are thin adapters over that decision; the Cesium client only consumes the JSON.
+
+## Ownership
+
+- **Problem:** a map that silently shows old data as current is worse than one that says it is unavailable.
+- **Evidence:** the existing tests already covered live, fresh-cache, stale-cache, no-cache, corrupt-cache and concurrent refresh at the provider level. Replaying them through the real HTTP API on a fixed dataset showed the status endpoint reporting a 3-hour-old cache as not stale.
+- **Decision:** keep "never represent stale data as live" as the rule; fix the status endpoint; leave the broader `state` semantics open.
+- **Implementation:** `earthglass/usgs.py` (status), `tools/freshness_demo.py`, `docs/FRESHNESS.md`.
+- **Verification:** `tests/test_usgs_provider.py::test_status_reports_aged_cache_as_stale_without_a_request` (fails without the fix); CI run linked from the pull request.
+- **Remaining limits:** see `docs/FRESHNESS.md`.
+
+## Development practice
+
+AI tools assist with implementation, debugging, tests, and documentation.
+Louis Boddie owns project direction and acceptance decisions; linked tests and release evidence document what has been verified.
+
 ## Relationship to OBEOS Earth
 
 **EarthGlass understands geospatial information. OBEOS Earth understands the planet.**

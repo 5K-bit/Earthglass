@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {"generated": 1767225660000},
+  "features": [
+    {"type": "Feature", "id": "demo0001",
+     "geometry": {"type": "Point", "coordinates": [-122.1, 37.4, 8.2]},
+     "properties": {"time": 1767225600000, "updated": 1767225650000,
+       "url": "https://earthquake.usgs.gov/earthquakes/eventpage/demo0001",
+       "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=demo0001",
+       "title": "M 2.4 - Fixture: Northern California", "place": "Fixture: Northern California",
+       "mag": 2.4, "magType": "ml", "status": "reviewed", "sig": 89}},
+    {"type": "Feature", "id": "demo0002",
+     "geometry": {"type": "Point", "coordinates": [-155.3, 19.4, 5.0]},
+     "properties": {"time": 1767225000000, "updated": 1767225100000,
+       "url": "https://earthquake.usgs.gov/earthquakes/eventpage/demo0002",
+       "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=demo0002",
+       "title": "M 3.1 - Fixture: Hawaii", "place": "Fixture: Hawaii",
+       "mag": 3.1, "magType": "ml", "status": "automatic", "sig": 148}},
+    {"type": "Feature", "id": "demo0003",
+     "geometry": {"type": "Point", "coordinates": [142.4, 38.3, 30.0]},
+     "properties": {"time": 1767224400000, "updated": 1767224500000,
+       "url": "https://earthquake.usgs.gov/earthquakes/eventpage/demo0003",
+       "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=demo0003",
+       "title": "M 4.6 - Fixture: Japan", "place": "Fixture: Japan",
+       "mag": 4.6, "magType": "mb", "status": "reviewed", "sig": 326}}
+  ]
+}

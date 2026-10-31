@@ -74,6 +74,10 @@ class USGSEarthquakeProvider:
         if cached is not None:
             self._status.feature_count = len(cached.features)
             self._status.last_success_at = cached.source.retrieved_at
+            # Staleness follows the cache's age, not only the last refresh outcome.
+            self._status.cache_stale = self._age(cached) > self.refresh_interval
+        else:
+            self._status.cache_stale = False
         return self._status
 
     def _age(self, collection: FeatureCollection) -> float:

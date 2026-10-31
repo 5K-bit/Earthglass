@@ -142,3 +142,19 @@ def test_corrupt_cache_is_ignored(tmp_path) -> None:
     tmp_path.mkdir(exist_ok=True)
     cache.path_for("earthquakes").write_text("not json", encoding="utf-8")
     assert cache.load("earthquakes") is None
+
+
+def test_status_reports_aged_cache_as_stale_without_a_request(tmp_path) -> None:
+    """Regression: status used to say cache_stale=False for a 3-hour-old cache
+    until some request happened to trigger a refresh."""
+    current = [datetime(2026, 1, 1, 0, 5, tzinfo=timezone.utc)]
+    provider = USGSEarthquakeProvider(
+        cache=FeatureCache(tmp_path),
+        fetcher=lambda *_: usgs_payload(),
+        clock=lambda: current[0],
+    )
+    provider.refresh("earthquakes")
+    assert provider.status.cache_stale is False
+    current[0] += timedelta(hours=3)
+    assert provider.status.cache_stale is True
+    assert provider.status.cache_age_seconds == 10800

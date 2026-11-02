@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="t">
+  <title id="t">EarthGlass icon</title>
+  <rect width="256" height="256" rx="56" fill="#0c1220"/>
+  <rect x="6" y="6" width="244" height="244" rx="50" fill="none" stroke="#83bfa9" stroke-opacity=".35" stroke-width="4"/>
+  <g transform="translate(33.53 33.53) scale(0.7872)" fill="none" stroke="#83bfa9" stroke-width="12.70" stroke-linecap="round" stroke-linejoin="round"><circle cx="120" cy="120" r="94"/><ellipse cx="120" cy="120" rx="44" ry="94"/><ellipse cx="120" cy="120" rx="94" ry="38"/><path d="M26 120h188M120 26v188"/></g>
+</svg>

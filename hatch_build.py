@@ -8,7 +8,8 @@ class CustomBuildHook(BuildHookInterface):
         city_data = Path(self.root) / "earthglass" / "spatial" / "data"
         if not (city_data / "cities15000.json.gz").is_file():
             raise RuntimeError("The bundled GeoNames city index is missing.")
-        build_data["force_include"][str(city_data)] = "earthglass/spatial/data"
+        # The data directory is already part of the `earthglass` package, so it must not be
+        # force-included as well: newer hatchling refuses a file added to the wheel twice.
         if os.environ.get("EARTHGLASS_BUNDLE_DESKTOP") != "1":
             return
         assets = Path(self.root) / "obeos-earth" / "dist"

@@ -233,6 +233,10 @@ A provider adapter fetches and validates upstream data into `NormalizedFeature`s
 AI tools assist with implementation, debugging, tests, and documentation.
 Louis Boddie owns project direction and acceptance decisions; linked tests and release evidence document what has been verified.
 
+## Licence
+
+Apache-2.0. See [LICENSE](LICENSE).
+
 ## Relationship to OBEOS Earth
 
 **EarthGlass understands geospatial information. OBEOS Earth understands the planet.**

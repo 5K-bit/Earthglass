@@ -1,4 +1,4 @@
-﻿"""NOAA National Weather Service active-alerts provider (watches, warnings, advisories)."""
+"""NOAA National Weather Service active-alerts provider (watches, warnings, advisories)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { assessCatalog, assessLayer, overlayUrl, MAX_FEED_AGE_MS, type WeatherLayer } from "./broadcastData";
 
 const NOW = Date.parse("2026-11-04T12:00:00Z");

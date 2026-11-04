@@ -1,4 +1,4 @@
-﻿/** Broadcast boundary: weather model analysis is not observed radar or a forecast. */
+/** Broadcast boundary: weather model analysis is not observed radar or a forecast. */
 export type WeatherLayer = {
   id: string;
   name: string;
@@ -33,7 +33,7 @@ export function assessLayer(
 ): LayerAssessment {
   const metadata = layer?.metadata;
   if (!metadata) {
-    return { state: "demo", description: "Illustrative data only Â· not a real forecast", cycle: null, asset: null };
+    return { state: "demo", description: "Illustrative data only · not a real forecast", cycle: null, asset: null };
   }
   if (!SAFE_IMAGE.test(metadata.assets?.image ?? "") ||
       metadata.provenance?.dataKind !== "model_analysis" ||
@@ -49,9 +49,9 @@ export function assessLayer(
   if (feedStale || layer?.offline || ["stale", "error", "missing"].includes(metadata.status ?? "") ||
       cycleMs > nowMs + 60 * 60 * 1000 || generatedMs > nowMs + 60 * 60 * 1000 ||
       nowMs - cycleMs > MAX_CYCLE_AGE_MS) {
-    return { state: "stale", description: "Old or inconsistent model cycle Â· not for air", cycle: metadata.cycle, asset: metadata.assets.image };
+    return { state: "stale", description: "Old or inconsistent model cycle · not for air", cycle: metadata.cycle, asset: metadata.assets.image };
   }
-  return { state: "model", description: "NOAA GFS model analysis Â· editorial review required", cycle: metadata.cycle, asset: metadata.assets.image };
+  return { state: "model", description: "NOAA GFS model analysis · editorial review required", cycle: metadata.cycle, asset: metadata.assets.image };
 }
 
 export function assessCatalog(value: unknown): WeatherLayer[] {

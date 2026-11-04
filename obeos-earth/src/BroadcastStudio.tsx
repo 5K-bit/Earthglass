@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Cartesian3, Color, Credit, EllipsoidTerrainProvider, Rectangle,
   SingleTileImageryProvider, TileMapServiceImageryProvider, Viewer,
@@ -88,9 +88,9 @@ export default function BroadcastStudio() {
   const programOnly = new URLSearchParams(window.location.search).get("program") === "1";
   const assessment = assessLayer(catalog.find(item => item.id === field), nowMs, lastFetchMs);
   const illustrative = assessment.state === "demo" || assessment.state === "unsupported";
-  const sourceDescription = illustrative ? "ILLUSTRATIVE DATA Â· NOT A FORECAST" :
-    assessment.state === "stale" ? "STALE MODEL Â· NOT FOR AIR" :
-    "NOAA GFS MODEL ANALYSIS Â· REVIEW REQUIRED";
+  const sourceDescription = illustrative ? "ILLUSTRATIVE DATA · NOT A FORECAST" :
+    assessment.state === "stale" ? "STALE MODEL · NOT FOR AIR" :
+    "NOAA GFS MODEL ANALYSIS · REVIEW REQUIRED";
 
   // Same-browser preview synchronization only. OBS / separate hosts need server transport.
   useEffect(() => {
@@ -146,7 +146,7 @@ export default function BroadcastStudio() {
     scene.camera.setView({ destination: Cartesian3.fromDegrees(-74.006, 40.713, 3900000) });
     const assetRoot = import.meta.env.DEV ? "/node_modules/cesium/Build/Cesium" : "/cesium";
     void TileMapServiceImageryProvider.fromUrl(assetRoot + "/Assets/Textures/NaturalEarthII", {
-      credit: new Credit("Natural Earth Â· public domain, bundled with Cesium", true),
+      credit: new Credit("Natural Earth · public domain, bundled with Cesium", true),
     }).then(provider => {
       if (!scene.isDestroyed()) scene.imageryLayers.addImageryProvider(provider, 0);
     }).catch(() => setError("Bundled geographic imagery unavailable."));
@@ -184,7 +184,7 @@ export default function BroadcastStudio() {
       } catch {
         if (!active || controller.signal.aborted) return;
         setCatalog([]);
-        setConnection("EarthGlass weather API unavailable Â· sample mode");
+        setConnection("EarthGlass weather API unavailable · sample mode");
       }
     };
     void load();
@@ -200,7 +200,7 @@ export default function BroadcastStudio() {
     if (!image) return;
     void SingleTileImageryProvider.fromUrl(image, {
       rectangle: Rectangle.MAX_VALUE,
-      credit: new Credit(illustrative ? "SIMULATED WEATHER GRAPHIC Â· NOT REAL DATA" : "NOAA GFS via EarthGlass", true),
+      credit: new Credit(illustrative ? "SIMULATED WEATHER GRAPHIC · NOT REAL DATA" : "NOAA GFS via EarthGlass", true),
     }).then(provider => {
       if (!active || scene.isDestroyed()) return;
       if (overlay.current) scene.imageryLayers.remove(overlay.current, true);
@@ -238,8 +238,8 @@ export default function BroadcastStudio() {
   return (
     <main className={programOnly ? "broadcast-shell program-only" : "broadcast-shell"}>
       {!programOnly && <header className="studio-head">
-        <div><span className="brand-symbol">â—‰</span><strong>EARTHGLASS</strong><span className="brand-sub">/ BROADCAST</span></div>
-        <span className="studio-kicker">BY OBEOS Â· BROADCAST PROTOTYPE V0.1</span>
+        <div><span className="brand-symbol">◉</span><strong>EARTHGLASS</strong><span className="brand-sub">/ BROADCAST</span></div>
+        <span className="studio-kicker">BY OBEOS · BROADCAST PROTOTYPE V0.1</span>
       </header>}
       <div className="studio-layout">
         <section className="program-frame" aria-label="16 by 9 broadcast presentation preview" ref={programNode}>
@@ -287,7 +287,7 @@ export default function BroadcastStudio() {
       </div>
       {!programOnly && <footer className="studio-footer">
         <span>EARTHGLASS / GEOSPATIAL ENGINE + OBEOS EARTH / CESIUM RENDERER</span>
-        <span>DATA PROVENANCE FIRST Â· BROADCAST INTEGRATION NEXT</span>
+        <span>DATA PROVENANCE FIRST · BROADCAST INTEGRATION NEXT</span>
       </footer>}
     </main>
   );

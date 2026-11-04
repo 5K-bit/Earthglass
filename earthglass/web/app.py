@@ -1,4 +1,4 @@
-﻿"""EarthGlass FastAPI application.
+"""EarthGlass FastAPI application.
 
 The web surface is now an adapter over the renderer-agnostic EarthGlass core.
 Leaflet remains a lightweight demo UI; layer definitions live outside the web

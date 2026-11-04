@@ -87,3 +87,6 @@ button, select { font: inherit; }
 .preview-line { margin: 6px 0; font-size: 12px; letter-spacing: 0.04em; opacity: 0.85; }
 .take-button { width: 100%; padding: 12px; font-weight: 700; letter-spacing: 0.12em; background: #b3122a; color: #fff; border: 1px solid #ff6b6b; cursor: pointer; }
 .take-button:disabled { background: #333; border-color: #555; color: #888; cursor: not-allowed; }
+.program-radar-warning { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); z-index: 6; padding: 12px 22px; text-align: center; background: #510e23ee; border: 2px solid #ff6b6b; color: #fff; letter-spacing: 0.08em; }
+.program-radar-warning strong { display: block; font-size: clamp(14px, 2vw, 34px); }
+.program-radar-warning span { font-size: clamp(10px, 1vw, 18px); opacity: 0.9; }

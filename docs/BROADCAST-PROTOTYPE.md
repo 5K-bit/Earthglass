@@ -22,6 +22,10 @@ pnpm --dir obeos-earth dev
 
 The origin must serve both `GET /api/weather/layers` and `GET /weather/gfs/latest/<filename>` from the **same host**. The basic `earthglass serve` app does **not** mount the weather API by itself: this feature is implemented in `earthglass/weather/api.py` for the canonical Earth host. Configure CORS there if using a separate origin.
 
+## Demo control synchronization
+
+The studio and presentation-only pages exchange location and weather-field changes through the browser's `BroadcastChannel` when opened as tabs in the **same browser and origin**. This is a preview convenience, **not** a broadcast playout control system. An OBS browser source or a separate station computer may use a different browser context and will **not** reliably receive these messages. Implement a trusted server-side control/state channel with replay and reconnect before a production pilot.
+
 ## Data integrity
 
 - Without a connected weather host or available local layer, the globe uses explicitly **synthetic**, illustrative overlays.

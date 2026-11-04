@@ -24,6 +24,11 @@ describe("broadcast weather safety", () => {
     const old = { ...layer, metadata: { ...layer.metadata!, cycle: "2026-11-03T18:00:00Z" } };
     expect(assessLayer(old, NOW).state).toBe("stale");
   });
+  it("does not label offline or degraded retained products as current", () => {
+    expect(assessLayer({ ...layer, offline: true }, NOW).state).toBe("stale");
+    const degraded = { ...layer, metadata: { ...layer.metadata!, status: "stale" } };
+    expect(assessLayer(degraded, NOW).state).toBe("stale");
+  });
   it("rejects untrusted asset paths", () => {
     const unsafe = { ...layer, metadata: { ...layer.metadata!, assets: { image: "https://example.com/weather.png" } } };
     expect(assessLayer(unsafe, NOW).state).toBe("unsupported");

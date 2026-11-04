@@ -1,4 +1,4 @@
-"""EarthGlass FastAPI application.
+﻿"""EarthGlass FastAPI application.
 
 The web surface is now an adapter over the renderer-agnostic EarthGlass core.
 Leaflet remains a lightweight demo UI; layer definitions live outside the web
@@ -8,13 +8,14 @@ package so OBEOS Earth or any other client can consume the same registry.
 from pathlib import Path
 import os
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from earthglass.layers import get_layers, registry
+from earthglass.radar import RadarService
 from earthglass.providers import ProviderManager, ProviderUnavailable
 from earthglass.runtime import provider_manager
 
@@ -44,7 +45,9 @@ def asset_status() -> dict[str, object]:
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
-def create_app(providers: ProviderManager | None = None) -> FastAPI:
+def create_app(
+    providers: ProviderManager | None = None, radar: RadarService | None = None
+) -> FastAPI:
     """Build the HTTP adapter; providers can be replaced for deterministic tests."""
 
     application = FastAPI(
@@ -68,6 +71,11 @@ def create_app(providers: ProviderManager | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Accept", "Content-Type"],
     )
+    radar_service = radar or RadarService(
+        Path(os.getenv("EARTHGLASS_CACHE_DIR", ".earthglass-cache")) / "radar"
+    )
+    application.state.radar = radar_service
+    application.include_router(radar_service.router())
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.get("/health")
@@ -91,6 +99,18 @@ def create_app(providers: ProviderManager | None = None) -> FastAPI:
             return application.state.providers.get_features(layer_id).as_geojson()
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ProviderUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @application.get("/api/weather/alerts/point")
+    def api_point_alerts(
+        lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180)
+    ) -> dict[str, object]:
+        try:
+            provider = application.state.providers.provider_for("weather-alerts")
+            return provider.get_point_alerts(lat, lon).as_geojson()
+        except (KeyError, AttributeError) as exc:
+            raise HTTPException(status_code=404, detail="Point alerts are not configured") from exc
         except ProviderUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 

@@ -131,3 +131,46 @@ def test_alerts_layer_is_served_through_the_api(tmp_path) -> None:
     assert data["metadata"]["source"]["provider"] == "nws"
     assert data["features"][0]["properties"]["event"] == "Tornado Warning"
     assert data["features"][0]["geometry"] is None
+
+
+def test_point_alerts_query_one_location_and_cache_it(tmp_path):
+    calls = []
+
+    def fetch(url, timeout):
+        calls.append(url)
+        return payload(alert(geometry=None))
+
+    provider = NWSAlertsProvider(cache=FeatureCache(tmp_path), fetcher=fetch, clock=lambda: NOW)
+    first = provider.get_point_alerts(40.713, -74.006)
+    provider.get_point_alerts(40.7131, -74.0059)  # rounds to the same point: no new request
+    assert len(calls) == 1 and "point=40.71,-74.01" in calls[0]
+    assert first.features[0].properties["located"] is False
+    assert first.source.source_url == calls[0]
+
+
+def test_point_alerts_stale_on_outage_and_503_over_http(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from earthglass.layers import registry
+    from earthglass.providers import ProviderManager
+    from earthglass.web.app import create_app
+
+    clock = {"now": NOW}
+    state = {"down": False}
+
+    def fetch(url, timeout):
+        if state["down"]:
+            raise RuntimeError("down")
+        return payload(alert())
+
+    provider = NWSAlertsProvider(cache=FeatureCache(tmp_path), fetcher=fetch, clock=lambda: clock["now"])
+    manager = ProviderManager(registry)
+    manager.register(provider)
+    api = TestClient(create_app(manager))
+    assert api.get("/api/weather/alerts/point", params={"lat": 40.7, "lon": -74.0}).status_code == 200
+    state["down"] = True
+    clock["now"] = datetime(2026, 11, 4, 12, 10, tzinfo=timezone.utc)
+    stale = api.get("/api/weather/alerts/point", params={"lat": 40.7, "lon": -74.0}).json()
+    assert stale["metadata"]["cache"]["stale"] is True
+    assert api.get("/api/weather/alerts/point", params={"lat": 25.7, "lon": -80.2}).status_code == 503
+    assert api.get("/api/weather/alerts/point", params={"lat": 99, "lon": 0}).status_code == 422

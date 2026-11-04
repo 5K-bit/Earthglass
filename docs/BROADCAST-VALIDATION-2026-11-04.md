@@ -11,7 +11,7 @@
 
 - **Operator-reported real OBS test:** The operator confirmed all six checks below passed on 2026-11-04. This is a first-party acceptance report; no OBS recording, performance trace, screen capture, or external-witness sign-off is attached here.
 - **Browser integration tests:** The operator also reported preview/TAKE separation, server-loss behavior, and recovery while testing with live NOAA data.
-- **Automated tests:** The operator reported 68 frontend tests passing and a clean TypeScript type check after the freshness fixes. GitHub Actions reported passing EarthGlass OBEOS Component CI on the involved PR heads prior to this documentation update. The final merged main-branch result must be checked separately; earlier PR CI is not proof of a post-merge production run.
+- **Automated tests:** The operator reported 68 frontend tests passing and a clean TypeScript type check after the freshness fixes. [GitHub Actions run 41921502304](https://github.com/5K-bit/Earthglass/actions/runs/41921502304) completed successfully on integration commit `3e3bb55de5317058ce03339889f99c8ba18be158`: `obeos-earth-client` passed frontend tests and build; `earthglass-api` passed Python pytest, spatial contract verification and manifest checks. This commit included the updated validation documentation and the merged #6/#7/#8 changes. After passing, PR #9 was merged to `main`. These results do not establish a separate production-host or post-deployment test.
 - **Source review:** The source includes explicit withholding of non-live radar images, a three-part NWS feed freshness rule, and server-only control of the program view.
 
 ## OBS acceptance — six operator-confirmed passes
@@ -42,6 +42,19 @@
 - [ ] Have a qualified station meteorologist review severe-weather workflows, alert semantics, geography and data attribution.
 - [ ] Implement station-specific authentication/authorization, security audit events, observability, deployment/rollback, monitoring and SLA before production.
 - [ ] Test station-specific switching/capture equipment and integrations such as vMix/CasparCG/NDI/SDI where applicable.
+
+## Merge record (verified on GitHub)
+
+All four PRs are **merged to `main`** in dependency-safe order:
+
+| PR | Scope | Merge commit |
+|---|---|---|
+| [#8](https://github.com/5K-bit/Earthglass/pull/8) | Optional maps integration-test skip | `850e9e74eac1d846ad2335edc90776d60c45b6f9` |
+| [#6](https://github.com/5K-bit/Earthglass/pull/6) | 16:9 Cesium broadcast prototype | `356a3bfee02470a882303549ab6e9859e5999617` |
+| [#7](https://github.com/5K-bit/Earthglass/pull/7) | NWS active-alerts provider | `64c86f6d1c40a3320d3400d09c5db4e89cbde119` |
+| [#9](https://github.com/5K-bit/Earthglass/pull/9) | Radar, alert presentation, authoritative preview/TAKE, freshness fixes and pilot documentation | `b239592a4016160a8a6204446f6712041fc7fd74` |
+
+PR #9 was reconciled with the newly merged `main` before its final CI run. The conflict resolution preserved both its broadcast enhancements and PR #8's optional-dependency test repair. The integration CI passed before the final merge; the completed merge was subsequently verified on GitHub.
 
 ## Acceptance decision
 

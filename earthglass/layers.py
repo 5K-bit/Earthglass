@@ -65,6 +65,19 @@ registry.register(
         attribution="U.S. Geological Survey (USGS)",
     )
 )
+registry.register(
+    LayerDefinition(
+        id="weather-alerts",
+        name="Weather alerts",
+        description="Active NWS watches, warnings and advisories (actual alerts only).",
+        category="weather",
+        geometry="polygon",
+        provider="nws",
+        enabled=True,
+        refresh_interval=120,
+        attribution="NOAA National Weather Service",
+    )
+)
 
 
 def get_layers() -> list[dict[str, object]]:

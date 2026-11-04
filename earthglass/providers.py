@@ -56,28 +56,69 @@ class SourceMetadata:
         return asdict(self)
 
 
+def _validate_position(coordinates: Any) -> None:
+    if not isinstance(coordinates, (list, tuple)) or len(coordinates) not in (2, 3):
+        raise ValueError("coordinates must contain longitude, latitude[, altitude]")
+    if not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in coordinates):
+        raise ValueError("coordinates must be numeric")
+    longitude, latitude = coordinates[:2]
+    if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+        raise ValueError("coordinates are outside geographic bounds")
+
+
+def _validate_ring(ring: Any) -> None:
+    if not isinstance(ring, (list, tuple)) or len(ring) < 4:
+        raise ValueError("polygon ring needs at least four positions")
+    for position in ring:
+        _validate_position(position)
+    if list(ring[0][:2]) != list(ring[-1][:2]):
+        raise ValueError("polygon ring must be closed")
+
+
+def _validate_polygon(rings: Any) -> None:
+    if not isinstance(rings, (list, tuple)) or not rings:
+        raise ValueError("polygon requires at least one ring")
+    for ring in rings:
+        _validate_ring(ring)
+
+
+def validate_geometry(geometry: dict[str, Any]) -> None:
+    """Validate the GeoJSON geometry types the normalized schema supports."""
+
+    kind = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+    if kind == "Point":
+        _validate_position(coordinates)
+    elif kind == "Polygon":
+        _validate_polygon(coordinates)
+    elif kind == "MultiPolygon":
+        if not isinstance(coordinates, (list, tuple)) or not coordinates:
+            raise ValueError("multipolygon requires at least one polygon")
+        for polygon in coordinates:
+            _validate_polygon(polygon)
+    else:
+        raise ValueError("the normalized schema supports Point, Polygon and MultiPolygon geometry")
+
+
 @dataclass(frozen=True, slots=True)
 class NormalizedFeature:
-    """Validated, renderer-independent GeoJSON feature."""
+    """Validated, renderer-independent GeoJSON feature.
+
+    ``geometry`` may be ``None`` for a feature that is real but not yet located
+    (for example a weather alert defined only by forecast zones). Such features are
+    kept, never silently dropped, so consumers can still show or resolve them.
+    """
 
     id: str
-    geometry: dict[str, Any]
+    geometry: dict[str, Any] | None
     properties: dict[str, Any]
     provenance: dict[str, Any]
 
     def __post_init__(self) -> None:
         if not self.id:
             raise ValueError("feature id must not be empty")
-        if self.geometry.get("type") != "Point":
-            raise ValueError("the current normalized schema supports Point geometry")
-        coordinates = self.geometry.get("coordinates")
-        if not isinstance(coordinates, (list, tuple)) or len(coordinates) not in (2, 3):
-            raise ValueError("point coordinates must contain longitude, latitude[, altitude]")
-        if not all(isinstance(value, (int, float)) for value in coordinates):
-            raise ValueError("point coordinates must be numeric")
-        longitude, latitude = coordinates[:2]
-        if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
-            raise ValueError("point coordinates are outside geographic bounds")
+        if self.geometry is not None:
+            validate_geometry(self.geometry)
         if not isinstance(self.properties, dict):
             raise ValueError("feature properties must be an object")
         parse_timestamp(self.properties.get("observed_at"))

@@ -75,6 +75,9 @@ export default function BroadcastStudio() {
   const programNode = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const overlay = useRef<ImageryLayer | null>(null);
+  const broadcast = useRef<BroadcastChannel | null>(null);
+  const currentScene = useRef("nyc");
+  const currentField = useRef("temperature");
   const [location, setLocation] = useState<Location>(locations[0]);
   const [field, setField] = useState("temperature");
   const [catalog, setCatalog] = useState<WeatherLayer[]>([]);
@@ -86,6 +89,38 @@ export default function BroadcastStudio() {
   const sourceDescription = illustrative ? "ILLUSTRATIVE DATA · NOT A FORECAST" :
     assessment.state === "stale" ? "STALE MODEL · NOT FOR AIR" :
     "NOAA GFS MODEL ANALYSIS · REVIEW REQUIRED";
+
+  // Same-browser preview synchronization only. OBS / separate hosts need server transport.
+  useEffect(() => {
+    if (!("BroadcastChannel" in window)) return;
+    const bus = new BroadcastChannel("earthglass-broadcast-preview-v1");
+    broadcast.current = bus;
+    bus.onmessage = event => {
+      const message: unknown = event.data;
+      if (!message || typeof message !== "object") return;
+      const payload = message as { type?: string; scene?: string; field?: string };
+      if (payload.type === "hello" && !programOnly) {
+        bus.postMessage({ type: "sync", scene: currentScene.current, field: currentField.current });
+      }
+      if (programOnly && (payload.type === "sync" || payload.type === "scene")) {
+        const shot = locations.find(item => item.id === payload.scene);
+        if (shot) {
+          currentScene.current = shot.id;
+          setLocation(shot);
+          viewer.current?.camera.flyTo({
+            destination: Cartesian3.fromDegrees(shot.lon, shot.lat, shot.distance),
+            duration: 1.2,
+          });
+        }
+        if (fields.some(item => item.id === payload.field)) {
+          currentField.current = payload.field!;
+          setField(payload.field!);
+        }
+      }
+    };
+    if (programOnly) bus.postMessage({ type: "hello" });
+    return () => { broadcast.current = null; bus.close(); };
+  }, [programOnly]);
 
   useEffect(() => {
     if (!globeNode.current) return;
@@ -175,11 +210,18 @@ export default function BroadcastStudio() {
   }, [field, catalog, assessment.asset, illustrative]);
 
   const take = (item: Location) => {
+    currentScene.current = item.id;
     setLocation(item);
     viewer.current?.camera.flyTo({
       destination: Cartesian3.fromDegrees(item.lon, item.lat, item.distance),
       duration: 1.6,
     });
+    broadcast.current?.postMessage({ type: "scene", scene: item.id, field: currentField.current });
+  };
+  const selectField = (nextField: string) => {
+    currentField.current = nextField;
+    setField(nextField);
+    broadcast.current?.postMessage({ type: "scene", scene: currentScene.current, field: nextField });
   };
 
   return (
@@ -215,7 +257,7 @@ export default function BroadcastStudio() {
             </button>)}</div>
           <div className="control-caption">02 / ATMOSPHERIC PRODUCT</div>
           <label htmlFor="weather-product">Weather field</label>
-          <select id="weather-product" value={field} onChange={event => setField(event.target.value)}>
+          <select id="weather-product" value={field} onChange={event => selectField(event.target.value)}>
             {fields.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
           <p className="source-description">{sourceDescription}</p>

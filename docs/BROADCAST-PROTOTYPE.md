@@ -1,52 +1,60 @@
 # EarthGlass Broadcast — prototype v0.1
 
-An isolated **16:9 weather presentation preview** built on the existing OBEOS Earth / Cesium dependencies. It does not change the primary EarthGlass geospatial API or existing OBEOS Earth screen.
+**Status: Demonstration Validated (operator-reported OBS acceptance on 2026-11-04). Not certified for air.**
 
-## Run
+EarthGlass Broadcast is a browser-rendered, 16:9 Cesium weather storytelling prototype with a separate operator/control view and program output. It is built on the existing OBEOS Earth frontend and the EarthGlass FastAPI layer. Every presentation carries **PROTOTYPE / NOT FOR AIR**.
 
-From this repository root (Node 22+ and pnpm 11.19):
+See [OBS and release validation record](BROADCAST-VALIDATION-2026-11-04.md) for test evidence, scope and remaining release limits.
+
+## Start the demonstration
+
+From the repository root, with Node 22+ and pnpm 11.19:
 
 ```powershell
 pnpm --dir obeos-earth install --frozen-lockfile
-pnpm --dir obeos-earth dev
-```
-
-Open **http://127.0.0.1:5173/broadcast.html** for the control room or **http://127.0.0.1:5173/broadcast.html?program=1** for a presentation-only browser capture. The page has four camera shots and six weather-product choices. Cesium's bundled Natural Earth imagery renders the globe without an Ion token.
-
-To use a running EarthGlass/OBEOS Earth **weather-enabled host**:
-
-```powershell
 $env:VITE_BROADCAST_API_ORIGIN="http://127.0.0.1:8000"
 pnpm --dir obeos-earth dev
 ```
 
-The origin must serve both `GET /api/weather/layers` and `GET /weather/gfs/latest/<filename>` from the **same host**. The basic `earthglass serve` app does **not** mount the weather API by itself: this feature is implemented in `earthglass/weather/api.py` for the canonical Earth host. Configure CORS there if using a separate origin.
+Start the EarthGlass API separately on `127.0.0.1:8000` before using live radar, alerts or program control. The EarthGlass FastAPI app exposes the radar, alert and program endpoints. **It does not automatically mount the GFS weather catalog**; the six GFS analysis products require the separately configured, weather-enabled canonical Earth host and image endpoints. Set `VITE_BROADCAST_API_ORIGIN` to the origin serving the needed endpoints. If frontend and backend run on different origins, configure allowed CORS origins.
 
-## Demo control synchronization
+- Operator interface: `http://127.0.0.1:5173/broadcast.html`
+- Program/OBS Browser Source: `http://127.0.0.1:5173/broadcast.html?program=1`
+- Direct shot: `http://127.0.0.1:5173/broadcast.html?scene=mia&field=radar`
 
-The studio and presentation-only pages exchange location and weather-field changes through the browser's `BroadcastChannel` when opened as tabs in the **same browser and origin**. This is a preview convenience, **not** a broadcast playout control system. An OBS browser source or a separate station computer may use a different browser context and will **not** reliably receive these messages. Implement a trusted server-side control/state channel with replay and reconnect before a production pilot.
+Four programmed locations are New York, Miami, Chicago and San Francisco. The product selector includes one observed radar product and six NOAA GFS forecast-hour-zero model-analysis fields. Cesium's bundled Natural Earth imagery renders the base globe without an Ion token.
 
-## Data integrity
+## Preview, TAKE and program output
 
-- Without a connected weather host or available local layer, the globe uses explicitly **synthetic**, illustrative overlays.
-- Real weather products are the six existing NOAA GFS **forecast-hour-zero model analysis** layers. They are **not live radar**, observed current conditions, or forecast animations.
-- A model-analysis provenance flag, f000 forecast hour, allowed local image path and trustworthy UTC timestamps are required before the renderer accepts a source as a model layer.
-- Model cycles older than 10 hours, with anomalous future timestamps, or with unsupported provenance are flagged. No scene is certified for live on-air use.
-- Every view is permanently marked **PROTOTYPE / NOT FOR AIR** at this stage, including the clean program preview. This is intentional until a meteorologist approves content rules and the engineering team verifies output reliability.
+Selecting a shot or field stages **preview** through `POST /api/broadcast/preview`. Only an explicit TAKE calls `POST /api/broadcast/take` and changes the on-air state. The backend refuses a TAKE when its scene/product no longer matches the staged preview (HTTP 409). The program output polls `GET /api/broadcast/program` from its own browser context; it **does not use BroadcastChannel** and can therefore be captured separately in OBS Browser Source. The last program state is persisted across process restarts. Loss of the control link disables TAKE in the operator UI; the program holds the previously selected shot while reconnection is attempted.
 
-## Build/test
+Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN` is configured, otherwise writes are restricted to loopback clients. Keep the prototype behind a trusted network boundary. Token auth is not a replacement for station-grade access control, auditing, TLS and production security review.
+
+## Weather-data truth and failure behavior
+
+- **Observed radar:** NOAA/NCEP CONUS base-reflectivity mosaic, placed on a geographic rectangle with its **observation** time (not download time). If the metadata, observation age, or connection fails validation, the image is withheld and any prior radar overlay is removed. The product may retain the time in a **RADAR STALE · NO DATA SHOWN** label. The freshness threshold is 15 minutes, with additional server/client freshness rules. No simulated radar is substituted.
+- **NWS alerts:** Only actual (non-test/non-exercise), unexpired alerts are considered. Location-specific alert banners include zone-only alerts; only alerts with polygon geometries appear as globe shapes. The browser requires the backend cache flag to be explicitly non-stale, an NWS retrieval age of at most **5 minutes**, and its own last successful fetch within **3 minutes**. Missing freshness metadata is treated as unavailable. An unavailable/stale alert feed does not display **NO ACTIVE NWS ALERTS** or stale alert polygons.
+- **NOAA GFS:** Temperature, 10 m wind, precipitation rate, cloud cover, pressure and humidity are *forecast-hour-zero model analyses*; they are not observed radar or current station measurements. UTC model-cycle time and stale status are shown. Catalogs and assets require compatible provenance, timestamp and local-path checks.
+- **Offline demonstration:** When real GFS model layers are unavailable, synthetic **illustrative** weather graphics may appear and are prominently labeled as not real data. The radar product never fabricates an observed radar frame.
+
+## OBS capture acceptance
+
+In OBS Studio, create a Browser Source pointing to `/broadcast.html?program=1`, with canvas source dimensions **1920 × 1080** and an initial **30 FPS** capture setting (a setting, not a measured render guarantee). Open the operator view separately.
+
+The operator reported passing all six checks on 2026-11-04: program rendered in OBS; preview did not affect program; TAKE changed the program shot; radar/model selection retained source timestamps; backend loss held the program and stale data was withheld; and backend restart restored control without losing the selected shot. This test was performed by the operator, not independently witnessed or reproduced in this repository review. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
+
+## Build and verification
 
 ```powershell
 pnpm --dir obeos-earth test
 pnpm --dir obeos-earth build
+python -m pytest -q
 ```
 
-The build now includes `dist/broadcast.html` alongside the existing `dist/index.html` and `dist/presence.html`.
+The Vite build includes `dist/broadcast.html`, `dist/index.html` and `dist/presence.html`. A static host can preview the visual concept, but it cannot supply the station's live weather API or server-held program control without a separately hosted backend.
 
-To deploy the static preview, publish the `obeos-earth/dist` directory (e.g. Netlify). The static deployment is useful for pitching the visual concept and automatically enters clearly marked synthetic mode if no live API is accessible. **No paid NOAA source, commercial map tile, or broadcast hardware is required for the preview.**
+## Known limitations / pilot boundaries
 
-## Why this is not an on-air product yet
+This is a supervised engineering and sales prototype, **not a station-approved weather-alert chain or certified on-air graphics system**. Radar covers CONUS only. Zone-only alerts have no geographic shape until a zone geometry resolver is added. The code has not been independently benchmarked for sustained 1080p/60 or 4K output on a production GPU, multi-day unattended operation, rundown integration, NDI/SDI/key-fill delivery, failover, per-user permissions, audit logs or an SLA. Station meteorologists must approve content, alert handling and use of source data before any operational deployment.
 
-Before selling production use, validate: forecast/observation differentiation; NWS severe-weather watches/warnings and radar ingest; precise valid-time display, local and UTC timezone controls; fallback on data/network failures; 1920×1080/4K sustained output; animation and cue/rundown controls; rendering at station hardware; NDI/SDI/key/fill or supported capture bridge; alert sign-off by station meteorologists; logs/uptime, retry behavior, accessibility, and licensing for each data and imagery source.
-
-Recommended first commercial pitch: **local weather storytelling studio for streaming/social digital output**, not a replacement for the newsroom's mission-critical severe-weather broadcast chain.
+Commercial pilot recommendation: run as an optional digital/streaming weather storytelling system alongside existing broadcast graphics, with station branding, local shots and a written reliability report. The core EarthGlass engine is Apache-2.0; licensing/service terms for station customization, deployment, integration, training and support are separate.

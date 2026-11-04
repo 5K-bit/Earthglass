@@ -1,4 +1,4 @@
-"""Renderer-agnostic geospatial layer definitions and registry."""
+﻿"""Renderer-agnostic geospatial layer definitions and registry."""
 
 from __future__ import annotations
 
@@ -63,6 +63,19 @@ registry.register(
         enabled=True,
         refresh_interval=300,
         attribution="U.S. Geological Survey (USGS)",
+    )
+)
+registry.register(
+    LayerDefinition(
+        id="weather-alerts",
+        name="Weather alerts",
+        description="Active NWS watches, warnings and advisories (actual alerts only).",
+        category="weather",
+        geometry="polygon",
+        provider="nws",
+        enabled=True,
+        refresh_interval=120,
+        attribution="NOAA National Weather Service",
     )
 )
 

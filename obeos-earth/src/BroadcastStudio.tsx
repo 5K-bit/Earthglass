@@ -130,10 +130,11 @@ export default function BroadcastStudio() {
     let pending: AbortController | null = null;
     const load = async () => {
       pending?.abort();
-      pending = new AbortController();
+      const controller = new AbortController();
+      pending = controller;
       try {
         const response = await fetch(API_ORIGIN + "/api/weather/layers", {
-          signal: pending.signal, headers: { Accept: "application/json" }, cache: "no-store",
+          signal: controller.signal, headers: { Accept: "application/json" }, cache: "no-store",
         });
         if (!response.ok) throw new Error("HTTP " + response.status);
         const layers = assessCatalog(await response.json());
@@ -141,7 +142,7 @@ export default function BroadcastStudio() {
         setCatalog(layers);
         setConnection("EarthGlass weather API connected");
       } catch {
-        if (!active || pending.signal.aborted) return;
+        if (!active || controller.signal.aborted) return;
         setCatalog([]);
         setConnection("EarthGlass weather API unavailable · sample mode");
       }

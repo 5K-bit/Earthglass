@@ -6,7 +6,7 @@ import {
 import type { Entity, ImageryLayer } from "cesium";
 import { assessCatalog, assessLayer, overlayUrl, type WeatherLayer } from "./broadcastData";
 import {
-  alertPolygons, assessAlertBanner, assessRadar, parseAlerts,
+  alertFeedFresh, alertPolygons, assessAlertBanner, assessRadar, parseAlertFeed,
   type AlertFeature, type AlertFeed, type RadarMeta,
 } from "./broadcastAlerts";
 import { CONTROL_POLL_MS, controlLink, nextProgram, parseProgram, type ProgramState } from "./broadcastControl";
@@ -89,7 +89,6 @@ export default function BroadcastStudio() {
   const programNode = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const overlay = useRef<ImageryLayer | null>(null);
-  const broadcast = useRef<BroadcastChannel | null>(null);
   const currentScene = useRef(startLocation.id);
   const currentField = useRef(startField);
   const [location, setLocation] = useState<Location>(startLocation);
@@ -102,7 +101,7 @@ export default function BroadcastStudio() {
   const [radarMeta, setRadarMeta] = useState<RadarMeta | null>(null);
   const [radarFetchMs, setRadarFetchMs] = useState<number | null>(null);
   const [cityAlerts, setCityAlerts] = useState<AlertFeed & { cityId: string }>({ features: [], lastFetchMs: null, ok: false, cityId: "" });
-  const [mapAlerts, setMapAlerts] = useState<AlertFeature[]>([]);
+  const [mapAlerts, setMapAlerts] = useState<AlertFeed>({ features: [], lastFetchMs: null, ok: false });
   const alertEntities = useRef<Entity[]>([]);
   const programOnly = new URLSearchParams(window.location.search).get("program") === "1";
   const [controlOk, setControlOk] = useState<number | null>(null);
@@ -122,34 +121,6 @@ export default function BroadcastStudio() {
   const sourceDescription = isRadar ? radar.description + (radarTime ? " · " + radarTime : "") : illustrative ? "ILLUSTRATIVE DATA · NOT A FORECAST" :
     assessment.state === "stale" ? "STALE MODEL · NOT FOR AIR" :
     "NOAA GFS MODEL ANALYSIS · REVIEW REQUIRED";
-
-  // Same-browser preview synchronization only. OBS / separate hosts need server transport.
-  useEffect(() => {
-    if (!("BroadcastChannel" in window)) return;
-    const bus = new BroadcastChannel("earthglass-broadcast-preview-v1");
-    broadcast.current = bus;
-    bus.onmessage = event => {
-      const message: unknown = event.data;
-      if (!message || typeof message !== "object") return;
-      const payload = message as { type?: string; scene?: string; field?: string };
-      if (payload.type === "hello" && !programOnly) {
-        bus.postMessage({ type: "sync", scene: currentScene.current, field: currentField.current });
-      }
-      if (programOnly && (payload.type === "sync" || payload.type === "scene")) {
-        const shot = locations.find(item => item.id === payload.scene);
-        if (shot) {
-          currentScene.current = shot.id;
-          setLocation(shot);
-        }
-        if (fields.some(item => item.id === payload.field)) {
-          currentField.current = payload.field!;
-          setField(payload.field!);
-        }
-      }
-    };
-    if (programOnly) bus.postMessage({ type: "hello" });
-    return () => { broadcast.current = null; bus.close(); };
-  }, [programOnly]);
 
   // Server-held on-air state: the program output (including an OBS Browser Source) follows it.
   useEffect(() => {
@@ -281,8 +252,8 @@ export default function BroadcastStudio() {
         const query = "?lat=" + location.lat.toFixed(4) + "&lon=" + location.lon.toFixed(4);
         const response = await fetch(API_ORIGIN + "/api/weather/alerts/point" + query, { headers: { Accept: "application/json" }, cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const features = parseAlerts(await response.json());
-        if (active) setCityAlerts({ features, lastFetchMs: Date.now(), ok: true, cityId });
+        const parsed = parseAlertFeed(await response.json());
+        if (active) setCityAlerts({ ...parsed, lastFetchMs: Date.now(), ok: true, cityId });
       } catch { /* banner turns to "unavailable" once the last success is older than the freshness limit */ }
     };
     void load();
@@ -297,8 +268,8 @@ export default function BroadcastStudio() {
       try {
         const response = await fetch(API_ORIGIN + "/api/layers/weather-alerts/features", { headers: { Accept: "application/json" }, cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const features = parseAlerts(await response.json());
-        if (active) setMapAlerts(features);
+        const parsed = parseAlertFeed(await response.json());
+        if (active) setMapAlerts({ ...parsed, lastFetchMs: Date.now(), ok: true });
       } catch { /* leave previous areas; expiry still removes them */ }
     };
     void load();
@@ -311,7 +282,9 @@ export default function BroadcastStudio() {
     const scene = viewer.current;
     if (!scene || scene.isDestroyed()) return;
     alertEntities.current.forEach(entity => scene.entities.remove(entity));
-    alertEntities.current = alertPolygons(mapAlerts, alertMinute * 60000).map(item => {
+    // Alert areas are drawn only from a confirmed-fresh feed; a stale one is removed, not left on air.
+    const drawable = alertFeedFresh(mapAlerts, alertMinute * 60000) ? mapAlerts.features : [];
+    alertEntities.current = alertPolygons(drawable, alertMinute * 60000).map(item => {
       const color = Color.fromCssColorString(SEVERITY_COLOR[item.severity] ?? "#9fb5c1");
       return scene.entities.add({
         id: "alert:" + item.id,
@@ -386,13 +359,11 @@ export default function BroadcastStudio() {
   const take = (item: Location) => {
     currentScene.current = item.id;
     setLocation(item);
-    broadcast.current?.postMessage({ type: "scene", scene: item.id, field: currentField.current });
     void publish(item.id, currentField.current);
   };
   const selectField = (nextField: string) => {
     currentField.current = nextField;
     setField(nextField);
-    broadcast.current?.postMessage({ type: "scene", scene: currentScene.current, field: nextField });
     void publish(currentScene.current, nextField);
   };
 

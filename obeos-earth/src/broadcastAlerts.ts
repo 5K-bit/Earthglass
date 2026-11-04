@@ -1,6 +1,8 @@
 /** Broadcast boundary for observed radar and NWS alerts. Pure functions: no rendering, no I/O. */
 
 export const MAX_FEED_AGE_MS = 3 * 60 * 1000;
+// NWS data older than this when it reaches the screen is not treated as current (server refreshes every 2 min).
+export const MAX_ALERT_SOURCE_AGE_MS = 5 * 60 * 1000;
 export const MAX_RADAR_OBSERVATION_AGE_MS = 15 * 60 * 1000;
 
 export type RadarMeta = {
@@ -33,12 +35,15 @@ export function assessRadar(meta: RadarMeta | null, nowMs: number, lastFetchMs: 
       observedMs > nowMs + 5 * 60 * 1000) {
     return { state: "unavailable", description: "RADAR PRODUCT FAILED VALIDATION · NO DATA SHOWN", ...none };
   }
-  const base = { observedAt: meta.observed_at, image: meta.image, rectangle: [w, s, e, n] as [number, number, number, number] };
   const feedStale = lastFetchMs === null || nowMs - lastFetchMs > MAX_FEED_AGE_MS;
   if (feedStale || meta.stale || meta.status === "degraded" || nowMs - observedMs > MAX_RADAR_OBSERVATION_AGE_MS) {
-    return { state: "stale", description: "RADAR STALE · NOT FOR AIR", ...base };
+    // A stale frame is never drawn: image and rectangle are withheld, only the time is kept for the label.
+    return { state: "stale", description: "RADAR STALE · NO DATA SHOWN", observedAt: meta.observed_at, image: null, rectangle: null };
   }
-  return { state: "live", description: "NOAA RADAR · OBSERVED · CONUS ONLY", ...base };
+  return {
+    state: "live", description: "NOAA RADAR · OBSERVED · CONUS ONLY",
+    observedAt: meta.observed_at, image: meta.image, rectangle: [w, s, e, n],
+  };
 }
 
 export type AlertFeature = {
@@ -50,14 +55,40 @@ export type AlertFeature = {
   };
 };
 
-export type AlertFeed = { features: AlertFeature[]; lastFetchMs: number | null; ok: boolean };
+/**
+ * `lastFetchMs` is when the browser last got an HTTP success. `retrievedMs` is when EarthGlass last
+ * got the data from NWS, and `serverStale` is the server saying it is replaying held data. An HTTP
+ * success alone proves nothing about freshness, so all three are checked.
+ */
+export type AlertFeed = {
+  features: AlertFeature[]; lastFetchMs: number | null; ok: boolean;
+  retrievedMs?: number | null; serverStale?: boolean;
+};
 
-export function parseAlerts(value: unknown): AlertFeature[] {
-  const list = (value as { features?: unknown } | null)?.features;
+export type ParsedAlerts = { features: AlertFeature[]; retrievedMs: number | null; serverStale: boolean };
+
+export function parseAlertFeed(value: unknown): ParsedAlerts {
+  const body = value as { features?: unknown; metadata?: { source?: { retrieved_at?: unknown }; cache?: { stale?: unknown } } } | null;
+  const list = body?.features;
   if (!Array.isArray(list)) throw new Error("Alert payload is not a FeatureCollection");
-  return list.filter((item): item is AlertFeature =>
+  const features = list.filter((item): item is AlertFeature =>
     Boolean(item && typeof item === "object" && typeof item.id === "string" &&
       item.properties && typeof item.properties === "object"));
+  const retrieved = typeof body?.metadata?.source?.retrieved_at === "string" ? Date.parse(body.metadata.source.retrieved_at) : NaN;
+  // Missing freshness metadata cannot be verified, so it counts as stale.
+  const serverStale = body?.metadata?.cache?.stale !== false;
+  return { features, retrievedMs: Number.isFinite(retrieved) ? retrieved : null, serverStale };
+}
+
+export function parseAlerts(value: unknown): AlertFeature[] {
+  return parseAlertFeed(value).features;
+}
+
+/** True only for a confirmed-fresh feed: live from the server, retrieved recently, fetched recently. */
+export function alertFeedFresh(feed: AlertFeed, nowMs: number): boolean {
+  return feed.ok && !feed.serverStale && feed.lastFetchMs !== null &&
+    nowMs - feed.lastFetchMs <= MAX_FEED_AGE_MS &&
+    feed.retrievedMs != null && nowMs - feed.retrievedMs <= MAX_ALERT_SOURCE_AGE_MS;
 }
 
 const SEVERITY_RANK: Record<string, number> = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1 };
@@ -80,8 +111,7 @@ export type AlertBanner = {
 };
 
 export function assessAlertBanner(feed: AlertFeed, city: string, nowMs: number): AlertBanner {
-  const feedStale = !feed.ok || feed.lastFetchMs === null || nowMs - feed.lastFetchMs > MAX_FEED_AGE_MS;
-  if (feedStale) {
+  if (!alertFeedFresh(feed, nowMs)) {
     return { state: "unavailable", headline: "ALERT FEED UNAVAILABLE", detail: "DO NOT RELY ON THIS GRAPHIC FOR ALERT STATUS", count: 0, severity: null };
   }
   const active = activeAlerts(feed.features, nowMs);

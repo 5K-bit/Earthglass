@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  activeAlerts, alertPolygons, assessAlertBanner, assessRadar, parseAlerts,
+  activeAlerts, alertFeedFresh, alertPolygons, assessAlertBanner, assessRadar, parseAlertFeed, parseAlerts,
   MAX_FEED_AGE_MS, type AlertFeature, type RadarMeta,
 } from "./broadcastAlerts";
 
@@ -26,6 +26,20 @@ describe("radar safety", () => {
     expect(assessRadar({ ...radar, status: "degraded" }, NOW, NOW).state).toBe("stale");
     expect(assessRadar({ ...radar, stale: true }, NOW, NOW).state).toBe("stale");
   });
+  it("withholds the image and map rectangle of every non-live frame so the globe draws nothing", () => {
+    for (const a of [
+      assessRadar({ ...radar, observed_at: "2026-11-04T18:20:00Z" }, NOW, NOW),
+      assessRadar(radar, NOW, NOW - MAX_FEED_AGE_MS - 1),
+      assessRadar({ ...radar, status: "degraded" }, NOW, NOW),
+      assessRadar({ ...radar, stale: true }, NOW, NOW),
+      assessRadar(null, NOW, null),
+    ]) {
+      expect(a.image).toBeNull();
+      expect(a.rectangle).toBeNull();
+    }
+    expect(assessRadar({ ...radar, stale: true }, NOW, NOW).observedAt).toBe(radar.observed_at);
+    expect(assessRadar(radar, NOW, NOW).image).toBe("/weather/radar/latest.png");
+  });
   it("rejects untrusted image paths, bad boxes and future timestamps", () => {
     expect(assessRadar({ ...radar, image: "https://evil.example/r.png" }, NOW, NOW).state).toBe("unavailable");
     expect(assessRadar({ ...radar, bbox: [10, 0, -10, 5] }, NOW, NOW).state).toBe("unavailable");
@@ -34,11 +48,29 @@ describe("radar safety", () => {
 });
 
 describe("alert banner safety", () => {
-  const fresh = (features: AlertFeature[]) => ({ features, lastFetchMs: NOW - 1000, ok: true });
+  const fresh = (features: AlertFeature[]) => ({ features, lastFetchMs: NOW - 1000, ok: true, retrievedMs: NOW - 30_000, serverStale: false });
   it("never says 'no alerts' when the feed is down or old", () => {
     expect(assessAlertBanner({ features: [], lastFetchMs: null, ok: false }, "NEW YORK", NOW).state).toBe("unavailable");
     expect(assessAlertBanner({ features: [], lastFetchMs: NOW - MAX_FEED_AGE_MS - 1, ok: true }, "NEW YORK", NOW).state).toBe("unavailable");
     expect(assessAlertBanner(fresh([]), "NEW YORK", NOW).state).toBe("clear");
+  });
+  it("a successful HTTP reply carrying stale or unverifiable data never produces 'no alerts'", () => {
+    const base = fresh([]);
+    expect(assessAlertBanner({ ...base, serverStale: true }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(assessAlertBanner({ ...base, retrievedMs: NOW - 6 * 60_000 }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(assessAlertBanner({ ...base, retrievedMs: null }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(assessAlertBanner({ features: [], lastFetchMs: NOW - 1000, ok: true }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(alertFeedFresh(base, NOW)).toBe(true);
+  });
+  it("reads freshness from the server's cache metadata", () => {
+    const body = (stale: unknown, retrieved: string | undefined) => ({
+      type: "FeatureCollection", features: [],
+      metadata: { cache: stale === undefined ? undefined : { status: "cache", stale }, source: retrieved ? { retrieved_at: retrieved } : {} },
+    });
+    expect(parseAlertFeed(body(false, "2026-11-04T18:49:30Z"))).toMatchObject({ serverStale: false, retrievedMs: Date.parse("2026-11-04T18:49:30Z") });
+    expect(parseAlertFeed(body(true, "2026-11-04T18:49:30Z")).serverStale).toBe(true);
+    expect(parseAlertFeed(body(undefined, undefined))).toMatchObject({ serverStale: true, retrievedMs: null });
+    expect(parseAlertFeed({ type: "FeatureCollection", features: [] }).serverStale).toBe(true);
   });
   it("leads with the most severe alert and counts the rest", () => {
     const banner = assessAlertBanner(fresh([

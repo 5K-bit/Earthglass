@@ -8,6 +8,9 @@ from earthglass.boundary_import import prepare
 
 
 def test_us_state_package_preserves_global_borders(tmp_path):
+    # prepare() needs the optional "maps" extra (pyshp + shapely); skip rather than fail where it is absent.
+    pytest.importorskip("shapefile")
+    pytest.importorskip("shapely")
     root = Path.home() / "Downloads" / "10m_cultural"
     if not root.exists():
         pytest.skip("Local Natural Earth source package not installed")

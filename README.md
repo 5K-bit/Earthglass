@@ -237,6 +237,10 @@ Louis Boddie owns project direction and acceptance decisions; linked tests and r
 
 Apache-2.0. See [LICENSE](LICENSE).
 
+## EarthGlass Broadcast — 3D weather preview
+
+The optional [EarthGlass Broadcast prototype](docs/BROADCAST-PROTOTYPE.md) adds a 16:9 presentation screen at `obeos-earth/broadcast.html` using the existing Cesium frontend. It supports four camera shots, six NOAA GFS model-analysis overlays when the weather host is available, and clearly marked synthetic visuals otherwise. **Prototype only; not approved for on-air use.**
+
 ## Relationship to OBEOS Earth
 
 **EarthGlass understands geospatial information. OBEOS Earth understands the planet.**

@@ -7,6 +7,7 @@ export type WeatherLayer = {
   metadata?: {
     cycle: string;
     generatedAt?: string;
+    status?: string;
     forecastHour?: number;
     assets: { image: string };
     provenance?: { dataKind?: string; model?: string };
@@ -38,7 +39,8 @@ export function assessLayer(layer: WeatherLayer | undefined, nowMs = Date.now())
   if (!Number.isFinite(cycleMs) || !Number.isFinite(generatedMs)) {
     return { state: "unsupported", description: "Missing trustworthy model timestamps", cycle: null, asset: null };
   }
-  if (cycleMs > nowMs + 60 * 60 * 1000 || generatedMs > nowMs + 60 * 60 * 1000 ||
+  if (layer?.offline || ["stale", "error", "missing"].includes(metadata.status ?? "") ||
+      cycleMs > nowMs + 60 * 60 * 1000 || generatedMs > nowMs + 60 * 60 * 1000 ||
       nowMs - cycleMs > MAX_CYCLE_AGE_MS) {
     return { state: "stale", description: "Old or inconsistent model cycle · not for air", cycle: metadata.cycle, asset: metadata.assets.image };
   }

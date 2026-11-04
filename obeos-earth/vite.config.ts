@@ -7,7 +7,7 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: { earth: "index.html", presence: "presence.html" },
+      input: { earth: "index.html", presence: "presence.html", broadcast: "broadcast.html" },
     },
   },
   publicDir: "public",

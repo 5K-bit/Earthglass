@@ -76,6 +76,7 @@ class NWSAlertsProvider:
         self._status = ProviderStatus(name=self.name)
         self._memory: FeatureCollection | None = None
         self._lock = Lock()
+        self._points: dict[str, FeatureCollection] = {}
 
     # ---- status -----------------------------------------------------------------
     @property
@@ -160,6 +161,32 @@ class NWSAlertsProvider:
         self._status.serving_cache = True
         self._status.cache_stale = True
         return self._unexpired(cached).cached_copy(stale=True, age_seconds=age)
+
+    def get_point_alerts(self, latitude: float, longitude: float) -> FeatureCollection:
+        """Alerts affecting one location, resolved by NWS (covers zone-only alerts too).
+
+        Held in memory only, rounded to ~1 km and bounded in size. On upstream failure the
+        last result for that point is served marked stale; with none, ProviderUnavailable.
+        """
+
+        key = f"{latitude:.2f},{longitude:.2f}"
+        url = f"{NWS_ALERTS_URL}&point={latitude:.2f},{longitude:.2f}"
+        with self._lock:
+            held = self._points.get(key)
+            if held is not None and self._age(held) <= self.refresh_interval:
+                return self._unexpired(held).cached_copy(stale=False, age_seconds=self._age(held))
+            retrieved_at = isoformat(self.clock())
+            try:
+                collection = self._normalize(self.fetcher(url, self.timeout), retrieved_at=retrieved_at)
+            except Exception as exc:  # noqa: BLE001
+                if held is None:
+                    raise ProviderUnavailable("NWS point alerts are unavailable") from exc
+                return self._unexpired(held).cached_copy(stale=True, age_seconds=self._age(held))
+            collection = replace(collection, source=replace(collection.source, source_url=url))
+            if len(self._points) >= 64:
+                self._points.pop(next(iter(self._points)))
+            self._points[key] = collection
+            return collection
 
     @staticmethod
     def _require_layer(layer_id: str) -> None:

@@ -84,3 +84,6 @@ button, select { font: inherit; }
 .control-status { margin: 6px 0 0; font-size: 12px; letter-spacing: 0.04em; }
 .control-status.link-ok { color: #7fe0a0; }
 .control-status.link-lost, .control-status.link-never { color: #ffb347; }
+.preview-line { margin: 6px 0; font-size: 12px; letter-spacing: 0.04em; opacity: 0.85; }
+.take-button { width: 100%; padding: 12px; font-weight: 700; letter-spacing: 0.12em; background: #b3122a; color: #fff; border: 1px solid #ff6b6b; cursor: pointer; }
+.take-button:disabled { background: #333; border-color: #555; color: #888; cursor: not-allowed; }

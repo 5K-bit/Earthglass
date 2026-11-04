@@ -46,6 +46,8 @@ class ProgramState:
         self.clock = clock
         self._lock = Lock()
         self._state: dict[str, Any] = {"scene": None, "field": None, "revision": 0, "updated_at": None}
+        # Staged next shot. Held in memory only: a restart never leaves something armed.
+        self._preview: dict[str, str] | None = None
         self._load()
 
     def _load(self) -> None:
@@ -69,7 +71,33 @@ class ProgramState:
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            return {**self._state, "server_time": isoformat(self.clock())}
+            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+
+    def stage(self, scene: str, field: str) -> dict[str, Any]:
+        """Arm the next shot without changing what is on air."""
+
+        if not IDENTIFIER.match(scene) or not IDENTIFIER.match(field):
+            raise ValueError("scene and field must be short lowercase identifiers")
+        with self._lock:
+            self._preview = {"scene": scene, "field": field}
+            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+
+    def take(self, scene: str, field: str) -> dict[str, Any]:
+        """Put the staged shot on air. The caller names what it believes is staged; a mismatch is refused."""
+
+        with self._lock:
+            if self._preview is None:
+                raise LookupError("nothing is staged")
+            if self._preview != {"scene": scene, "field": field}:
+                raise LookupError("the staged shot changed; review it and take again")
+            self._state = {
+                "scene": scene,
+                "field": field,
+                "revision": self._state["revision"] + 1,
+                "updated_at": isoformat(self.clock()),
+            }
+            self._persist()
+            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
 
     def update(self, scene: str, field: str) -> dict[str, Any]:
         if not IDENTIFIER.match(scene) or not IDENTIFIER.match(field):
@@ -82,7 +110,7 @@ class ProgramState:
                 "updated_at": isoformat(self.clock()),
             }
             self._persist()
-            return {**self._state, "server_time": isoformat(self.clock())}
+            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
 
     def _persist(self) -> None:
         if self.path is None:
@@ -103,21 +131,50 @@ class ProgramState:
         def read_program() -> dict[str, Any]:
             return self.snapshot()
 
+        def authorize(request: Request, supplied: str | None) -> None:
+            token = os.getenv("EARTHGLASS_CONTROL_TOKEN", "")
+            if token:
+                if not supplied or not hmac.compare_digest(supplied, token):
+                    raise HTTPException(401, "Control token required")
+            elif (request.client.host if request.client else "") not in LOOPBACK_HOSTS:
+                raise HTTPException(403, "Program control is limited to this machine unless a control token is set")
+
         @router.post("/api/broadcast/program")
         def write_program(
             update: ProgramUpdate,
             request: Request,
             x_control_token: str | None = Header(default=None),
         ) -> dict[str, Any]:
-            token = os.getenv("EARTHGLASS_CONTROL_TOKEN", "")
-            if token:
-                if not x_control_token or not hmac.compare_digest(x_control_token, token):
-                    raise HTTPException(401, "Control token required")
-            elif (request.client.host if request.client else "") not in LOOPBACK_HOSTS:
-                raise HTTPException(403, "Program control is limited to this machine unless a control token is set")
+            """Direct cut to air, skipping preview. Prefer preview then take."""
+
+            authorize(request, x_control_token)
             try:
                 return self.update(update.scene, update.field)
             except ValueError as exc:
                 raise HTTPException(422, str(exc)) from exc
+
+        @router.post("/api/broadcast/preview")
+        def write_preview(
+            update: ProgramUpdate,
+            request: Request,
+            x_control_token: str | None = Header(default=None),
+        ) -> dict[str, Any]:
+            authorize(request, x_control_token)
+            try:
+                return self.stage(update.scene, update.field)
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+
+        @router.post("/api/broadcast/take")
+        def take_preview(
+            update: ProgramUpdate,
+            request: Request,
+            x_control_token: str | None = Header(default=None),
+        ) -> dict[str, Any]:
+            authorize(request, x_control_token)
+            try:
+                return self.take(update.scene, update.field)
+            except LookupError as exc:
+                raise HTTPException(409, str(exc)) from exc
 
         return router

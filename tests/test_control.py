@@ -56,3 +56,23 @@ def test_remote_client_refused_without_token(tmp_path, monkeypatch):
     client = TestClient(create_app(program=state), client=("203.0.113.9", 5000))
     response = client.post("/api/broadcast/program", json={"scene": "mia", "field": "radar"})
     assert response.status_code == 403
+
+
+def test_take_requires_matching_staged_shot(tmp_path):
+    _, client = make(tmp_path)
+    body = {"scene": "mia", "field": "radar"}
+    assert client.post("/api/broadcast/take", json=body).status_code == 409
+    staged = client.post("/api/broadcast/preview", json=body).json()
+    assert staged["preview"] == body and staged["revision"] == 0
+    assert client.get("/api/broadcast/program").json()["scene"] is None
+    assert client.post("/api/broadcast/take", json={"scene": "nyc", "field": "radar"}).status_code == 409
+    taken = client.post("/api/broadcast/take", json=body).json()
+    assert taken["scene"] == "mia" and taken["revision"] == 1
+
+
+def test_preview_and_take_are_protected(tmp_path, monkeypatch):
+    monkeypatch.setenv("EARTHGLASS_CONTROL_TOKEN", "s3cret")
+    _, client = make(tmp_path)
+    body = {"scene": "mia", "field": "radar"}
+    assert client.post("/api/broadcast/preview", json=body).status_code == 401
+    assert client.post("/api/broadcast/take", json=body).status_code == 401

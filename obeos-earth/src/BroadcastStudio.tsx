@@ -366,18 +366,23 @@ export default function BroadcastStudio() {
     });
   }, [location]);
 
-  const publish = async (scene: string, nextField: string) => {
+  const publish = async (scene: string, nextField: string, action: "preview" | "take" = "preview") => {
     const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
     const token = window.localStorage.getItem("earthglass-control-token");
     if (token) headers["X-Control-Token"] = token;
     try {
-      const response = await fetch(API_ORIGIN + "/api/broadcast/program", { method: "POST", headers, body: JSON.stringify({ scene, field: nextField }) });
-      if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Control refused (" + response.status + ")" : "HTTP " + response.status);
+      const response = await fetch(API_ORIGIN + "/api/broadcast/" + action, { method: "POST", headers, body: JSON.stringify({ scene, field: nextField }) });
+      if (!response.ok) throw new Error(response.status === 409 ? "staged shot changed, review and take again" : response.status === 401 || response.status === 403 ? "Control refused (" + response.status + ")" : "HTTP " + response.status);
       setControlError("");
+      if (action === "take") {
+        const body: unknown = await response.json();
+        setOnAir(previous => nextProgram(previous, parseProgram(body, locations.map(item => item.id), fields.map(item => item.id))));
+      }
     } catch (failure) {
-      setControlError("Program output NOT updated: " + (failure instanceof Error ? failure.message : "link down"));
+      setControlError((action === "take" ? "NOT ON AIR: " : "Preview not staged: ") + (failure instanceof Error ? failure.message : "link down"));
     }
   };
+  const takeToAir = () => void publish(currentScene.current, currentField.current, "take");
   const take = (item: Location) => {
     currentScene.current = item.id;
     setLocation(item);
@@ -420,11 +425,11 @@ export default function BroadcastStudio() {
         {!programOnly && <aside className="studio-controls">
           <div className="control-caption">01 / SHOT SELECTOR</div>
           <h2>Weather stories</h2>
-          <p>Choose a location and take the camera to air-preview.</p>
+          <p>Choose a location to stage it in preview, then take it to air.</p>
           <div className="shots">{locations.map(item =>
             <button key={item.id} type="button" onClick={() => take(item)}
               className={location.id === item.id ? "shot active" : "shot"}>
-              <small>{item.region}</small><strong>{item.city}</strong><span>TAKE</span>
+              <small>{item.region}</small><strong>{item.city}</strong><span>PREVIEW</span>
             </button>)}</div>
           <div className="control-caption">02 / ATMOSPHERIC PRODUCT</div>
           <label htmlFor="weather-product">Weather field</label>
@@ -435,10 +440,15 @@ export default function BroadcastStudio() {
           <p className="source-status">{connection}</p>
           <p className={"control-status link-" + controlLink(controlOk, nowMs)} role="status">
             {controlError ? controlError :
-              controlLink(controlOk, nowMs) === "ok" ? (onAir ? "ON AIR (server): " + onAir.scene.toUpperCase() + " / " + onAir.field + " · rev " + onAir.revision : "Server link OK · nothing taken yet") :
+              controlLink(controlOk, nowMs) === "ok" ? (onAir ? "ON AIR: " + onAir.scene.toUpperCase() + " / " + onAir.field + " · rev " + onAir.revision : "Server link OK · nothing on air yet") :
               controlLink(controlOk, nowMs) === "lost" ? "CONTROL LINK LOST · OBS output is holding its last shot" : "Connecting to program control"}
           </p>
-          <div className="control-caption">03 / OUTPUT</div>
+          <div className="control-caption">03 / ON AIR</div>
+          <p className="preview-line">PREVIEW: {location.city} / {field}{onAir && onAir.scene === location.id && onAir.field === field ? " · already on air" : " · not on air"}</p>
+          <button type="button" className="take-button" onClick={takeToAir} disabled={controlLink(controlOk, nowMs) !== "ok"}>
+            TAKE TO AIR
+          </button>
+          <div className="control-caption">04 / OUTPUT</div>
           <div className="actions">
             <button type="button" onClick={() => window.open("/broadcast.html?program=1", "_blank", "noopener")}>
               Open clean 16:9 output (follows server)

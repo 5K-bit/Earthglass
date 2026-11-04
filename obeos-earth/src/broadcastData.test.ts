@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { assessCatalog, assessLayer, type WeatherLayer } from "./broadcastData";
+﻿import { describe, expect, it } from "vitest";
+import { assessCatalog, assessLayer, overlayUrl, MAX_FEED_AGE_MS, type WeatherLayer } from "./broadcastData";
 
 const NOW = Date.parse("2026-11-04T12:00:00Z");
 const layer: WeatherLayer = {
@@ -18,7 +18,7 @@ describe("broadcast weather safety", () => {
     expect(assessLayer(undefined, NOW).state).toBe("demo");
   });
   it("recognizes an appropriately timestamped f000 analysis", () => {
-    expect(assessLayer(layer, NOW).state).toBe("model");
+    expect(assessLayer(layer, NOW, NOW - 1000).state).toBe("model");
   });
   it("marks old cycles stale regardless of generation timestamp", () => {
     const old = { ...layer, metadata: { ...layer.metadata!, cycle: "2026-11-03T18:00:00Z" } };
@@ -38,6 +38,15 @@ describe("broadcast weather safety", () => {
     const forecast = { ...layer, metadata: { ...layer.metadata!, provenance: { dataKind: "model_forecast" } } };
     expect(assessLayer(future, NOW).state).toBe("stale");
     expect(assessLayer(forecast, NOW).state).toBe("unsupported");
+  });
+  it("marks retained data stale when the feed stops refreshing", () => {
+    expect(assessLayer(layer, NOW, NOW - MAX_FEED_AGE_MS - 1).state).toBe("stale");
+    expect(assessLayer(layer, NOW, null).state).toBe("stale");
+  });
+  it("cache-busts overlay URLs by model cycle", () => {
+    const a = assessLayer(layer, NOW, NOW);
+    expect(overlayUrl("", a)).toBe("/weather/gfs/latest/temperature.png?cycle=2026-11-04T06%3A00%3A00Z");
+    expect(overlayUrl("", assessLayer(undefined, NOW))).toBeNull();
   });
   it("rejects malformed catalog bodies", () => {
     expect(() => assessCatalog({ error: "offline" })).toThrow();

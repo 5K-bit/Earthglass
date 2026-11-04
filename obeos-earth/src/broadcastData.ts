@@ -1,4 +1,4 @@
-/** Broadcast boundary: weather model analysis is not observed radar or a forecast. */
+﻿/** Broadcast boundary: weather model analysis is not observed radar or a forecast. */
 export type WeatherLayer = {
   id: string;
   name: string;
@@ -23,11 +23,17 @@ export type LayerAssessment = {
 
 const SAFE_IMAGE = /^\/weather\/gfs\/latest\/[a-zA-Z0-9_-]+\.png$/;
 const MAX_CYCLE_AGE_MS = 10 * 60 * 60 * 1000;
+/** If the catalog has not been refreshed this recently, retained data must not look current. */
+export const MAX_FEED_AGE_MS = 3 * 60 * 1000;
 
-export function assessLayer(layer: WeatherLayer | undefined, nowMs = Date.now()): LayerAssessment {
+export function assessLayer(
+  layer: WeatherLayer | undefined,
+  nowMs = Date.now(),
+  lastFetchMs: number | null = null,
+): LayerAssessment {
   const metadata = layer?.metadata;
   if (!metadata) {
-    return { state: "demo", description: "Illustrative data only · not a real forecast", cycle: null, asset: null };
+    return { state: "demo", description: "Illustrative data only Â· not a real forecast", cycle: null, asset: null };
   }
   if (!SAFE_IMAGE.test(metadata.assets?.image ?? "") ||
       metadata.provenance?.dataKind !== "model_analysis" ||
@@ -39,12 +45,13 @@ export function assessLayer(layer: WeatherLayer | undefined, nowMs = Date.now())
   if (!Number.isFinite(cycleMs) || !Number.isFinite(generatedMs)) {
     return { state: "unsupported", description: "Missing trustworthy model timestamps", cycle: null, asset: null };
   }
-  if (layer?.offline || ["stale", "error", "missing"].includes(metadata.status ?? "") ||
+  const feedStale = lastFetchMs === null || nowMs - lastFetchMs > MAX_FEED_AGE_MS;
+  if (feedStale || layer?.offline || ["stale", "error", "missing"].includes(metadata.status ?? "") ||
       cycleMs > nowMs + 60 * 60 * 1000 || generatedMs > nowMs + 60 * 60 * 1000 ||
       nowMs - cycleMs > MAX_CYCLE_AGE_MS) {
-    return { state: "stale", description: "Old or inconsistent model cycle · not for air", cycle: metadata.cycle, asset: metadata.assets.image };
+    return { state: "stale", description: "Old or inconsistent model cycle Â· not for air", cycle: metadata.cycle, asset: metadata.assets.image };
   }
-  return { state: "model", description: "NOAA GFS model analysis · editorial review required", cycle: metadata.cycle, asset: metadata.assets.image };
+  return { state: "model", description: "NOAA GFS model analysis Â· editorial review required", cycle: metadata.cycle, asset: metadata.assets.image };
 }
 
 export function assessCatalog(value: unknown): WeatherLayer[] {
@@ -52,4 +59,11 @@ export function assessCatalog(value: unknown): WeatherLayer[] {
   return value.filter((item): item is WeatherLayer => Boolean(item &&
     typeof item === "object" && typeof item.id === "string" &&
     typeof item.name === "string" && typeof item.unit === "string"));
+}
+
+/** Cache-busted overlay URL so a new model cycle is never served from a cached copy. */
+export function overlayUrl(origin: string, assessment: LayerAssessment): string | null {
+  if (!assessment.asset) return null;
+  const cycle = assessment.cycle ? "?cycle=" + encodeURIComponent(assessment.cycle) : "";
+  return origin + assessment.asset + cycle;
 }

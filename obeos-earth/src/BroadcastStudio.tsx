@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   Cartesian3, Color, Credit, EllipsoidTerrainProvider, Rectangle,
   SingleTileImageryProvider, TileMapServiceImageryProvider, Viewer,
 } from "cesium";
 import type { ImageryLayer } from "cesium";
-import { assessCatalog, assessLayer, type WeatherLayer } from "./broadcastData";
+import { assessCatalog, assessLayer, overlayUrl, type WeatherLayer } from "./broadcastData";
 import "./broadcast.css";
 
 type Location = { id: string; city: string; region: string; heading: string; lon: number; lat: number; distance: number };
@@ -83,12 +83,14 @@ export default function BroadcastStudio() {
   const [catalog, setCatalog] = useState<WeatherLayer[]>([]);
   const [connection, setConnection] = useState("Connecting to EarthGlass");
   const [error, setError] = useState("");
+  const [lastFetchMs, setLastFetchMs] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const programOnly = new URLSearchParams(window.location.search).get("program") === "1";
-  const assessment = assessLayer(catalog.find(item => item.id === field));
+  const assessment = assessLayer(catalog.find(item => item.id === field), nowMs, lastFetchMs);
   const illustrative = assessment.state === "demo" || assessment.state === "unsupported";
-  const sourceDescription = illustrative ? "ILLUSTRATIVE DATA · NOT A FORECAST" :
-    assessment.state === "stale" ? "STALE MODEL · NOT FOR AIR" :
-    "NOAA GFS MODEL ANALYSIS · REVIEW REQUIRED";
+  const sourceDescription = illustrative ? "ILLUSTRATIVE DATA Â· NOT A FORECAST" :
+    assessment.state === "stale" ? "STALE MODEL Â· NOT FOR AIR" :
+    "NOAA GFS MODEL ANALYSIS Â· REVIEW REQUIRED";
 
   // Same-browser preview synchronization only. OBS / separate hosts need server transport.
   useEffect(() => {
@@ -144,7 +146,7 @@ export default function BroadcastStudio() {
     scene.camera.setView({ destination: Cartesian3.fromDegrees(-74.006, 40.713, 3900000) });
     const assetRoot = import.meta.env.DEV ? "/node_modules/cesium/Build/Cesium" : "/cesium";
     void TileMapServiceImageryProvider.fromUrl(assetRoot + "/Assets/Textures/NaturalEarthII", {
-      credit: new Credit("Natural Earth · public domain, bundled with Cesium", true),
+      credit: new Credit("Natural Earth Â· public domain, bundled with Cesium", true),
     }).then(provider => {
       if (!scene.isDestroyed()) scene.imageryLayers.addImageryProvider(provider, 0);
     }).catch(() => setError("Bundled geographic imagery unavailable."));
@@ -154,6 +156,12 @@ export default function BroadcastStudio() {
       overlay.current = null;
       if (!scene.isDestroyed()) scene.destroy();
     };
+  }, []);
+
+  // Re-evaluate freshness continuously, not only when something else re-renders.
+  useEffect(() => {
+    const tick = window.setInterval(() => setNowMs(Date.now()), 5000);
+    return () => clearInterval(tick);
   }, []);
 
   useEffect(() => {
@@ -171,11 +179,12 @@ export default function BroadcastStudio() {
         const layers = assessCatalog(await response.json());
         if (!active) return;
         setCatalog(layers);
+        setLastFetchMs(Date.now());
         setConnection("EarthGlass weather API connected");
       } catch {
         if (!active || controller.signal.aborted) return;
         setCatalog([]);
-        setConnection("EarthGlass weather API unavailable · sample mode");
+        setConnection("EarthGlass weather API unavailable Â· sample mode");
       }
     };
     void load();
@@ -187,11 +196,11 @@ export default function BroadcastStudio() {
     const scene = viewer.current;
     if (!scene || scene.isDestroyed()) return;
     let active = true;
-    const image = illustrative ? illustrativeTexture(field) :
-      API_ORIGIN + assessment.asset;
+    const image = illustrative ? illustrativeTexture(field) : overlayUrl(API_ORIGIN, assessment);
+    if (!image) return;
     void SingleTileImageryProvider.fromUrl(image, {
       rectangle: Rectangle.MAX_VALUE,
-      credit: new Credit(illustrative ? "SIMULATED WEATHER GRAPHIC · NOT REAL DATA" : "NOAA GFS via EarthGlass", true),
+      credit: new Credit(illustrative ? "SIMULATED WEATHER GRAPHIC Â· NOT REAL DATA" : "NOAA GFS via EarthGlass", true),
     }).then(provider => {
       if (!active || scene.isDestroyed()) return;
       if (overlay.current) scene.imageryLayers.remove(overlay.current, true);
@@ -203,7 +212,8 @@ export default function BroadcastStudio() {
       if (active) setError("Weather overlay unavailable. Check the EarthGlass image endpoint.");
     });
     return () => { active = false; };
-  }, [field, catalog, assessment.asset, illustrative]);
+    // Keyed on the asset URL, not the catalog array, so the 60 s poll never reloads the overlay.
+  }, [field, assessment.asset, assessment.cycle, illustrative]);
 
   useEffect(() => {
     const scene = viewer.current;
@@ -228,8 +238,8 @@ export default function BroadcastStudio() {
   return (
     <main className={programOnly ? "broadcast-shell program-only" : "broadcast-shell"}>
       {!programOnly && <header className="studio-head">
-        <div><span className="brand-symbol">◉</span><strong>EARTHGLASS</strong><span className="brand-sub">/ BROADCAST</span></div>
-        <span className="studio-kicker">BY OBEOS · BROADCAST PROTOTYPE V0.1</span>
+        <div><span className="brand-symbol">â—‰</span><strong>EARTHGLASS</strong><span className="brand-sub">/ BROADCAST</span></div>
+        <span className="studio-kicker">BY OBEOS Â· BROADCAST PROTOTYPE V0.1</span>
       </header>}
       <div className="studio-layout">
         <section className="program-frame" aria-label="16 by 9 broadcast presentation preview" ref={programNode}>
@@ -277,7 +287,7 @@ export default function BroadcastStudio() {
       </div>
       {!programOnly && <footer className="studio-footer">
         <span>EARTHGLASS / GEOSPATIAL ENGINE + OBEOS EARTH / CESIUM RENDERER</span>
-        <span>DATA PROVENANCE FIRST · BROADCAST INTEGRATION NEXT</span>
+        <span>DATA PROVENANCE FIRST Â· BROADCAST INTEGRATION NEXT</span>
       </footer>}
     </main>
   );

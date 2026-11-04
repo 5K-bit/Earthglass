@@ -1,4 +1,4 @@
-﻿"""Renderer-agnostic geospatial layer definitions and registry."""
+"""Renderer-agnostic geospatial layer definitions and registry."""
 
 from __future__ import annotations
 

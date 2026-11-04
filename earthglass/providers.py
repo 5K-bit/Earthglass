@@ -1,4 +1,4 @@
-﻿"""Provider contracts, normalized payloads, and lifecycle coordination."""
+"""Provider contracts, normalized payloads, and lifecycle coordination."""
 
 from __future__ import annotations
 

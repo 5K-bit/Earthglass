@@ -1,4 +1,4 @@
-﻿"""Default EarthGlass runtime composition."""
+"""Default EarthGlass runtime composition."""
 
 from __future__ import annotations
 

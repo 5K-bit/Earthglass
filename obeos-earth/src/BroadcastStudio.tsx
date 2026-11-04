@@ -107,10 +107,6 @@ export default function BroadcastStudio() {
         if (shot) {
           currentScene.current = shot.id;
           setLocation(shot);
-          viewer.current?.camera.flyTo({
-            destination: Cartesian3.fromDegrees(shot.lon, shot.lat, shot.distance),
-            duration: 1.2,
-          });
         }
         if (fields.some(item => item.id === payload.field)) {
           currentField.current = payload.field!;
@@ -209,13 +205,18 @@ export default function BroadcastStudio() {
     return () => { active = false; };
   }, [field, catalog, assessment.asset, illustrative]);
 
+  useEffect(() => {
+    const scene = viewer.current;
+    if (!scene || scene.isDestroyed()) return;
+    scene.camera.flyTo({
+      destination: Cartesian3.fromDegrees(location.lon, location.lat, location.distance),
+      duration: 1.35,
+    });
+  }, [location]);
+
   const take = (item: Location) => {
     currentScene.current = item.id;
     setLocation(item);
-    viewer.current?.camera.flyTo({
-      destination: Cartesian3.fromDegrees(item.lon, item.lat, item.distance),
-      duration: 1.6,
-    });
     broadcast.current?.postMessage({ type: "scene", scene: item.id, field: currentField.current });
   };
   const selectField = (nextField: string) => {

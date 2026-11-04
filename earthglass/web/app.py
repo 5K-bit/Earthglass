@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from earthglass.layers import get_layers, registry
+from earthglass.control import ProgramState
 from earthglass.radar import RadarService
 from earthglass.providers import ProviderManager, ProviderUnavailable
 from earthglass.runtime import provider_manager
@@ -46,7 +47,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def create_app(
-    providers: ProviderManager | None = None, radar: RadarService | None = None
+    providers: ProviderManager | None = None,
+    radar: RadarService | None = None,
+    program: ProgramState | None = None,
 ) -> FastAPI:
     """Build the HTTP adapter; providers can be replaced for deterministic tests."""
 
@@ -69,13 +72,18 @@ def create_app(
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Accept", "Content-Type"],
+        allow_headers=["Accept", "Content-Type", "X-Control-Token"],
     )
     radar_service = radar or RadarService(
         Path(os.getenv("EARTHGLASS_CACHE_DIR", ".earthglass-cache")) / "radar"
     )
     application.state.radar = radar_service
     application.include_router(radar_service.router())
+    program_state = program or ProgramState(
+        Path(os.getenv("EARTHGLASS_CACHE_DIR", ".earthglass-cache")) / "program.json"
+    )
+    application.state.program = program_state
+    application.include_router(program_state.router())
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.get("/health")

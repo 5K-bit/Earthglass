@@ -81,3 +81,6 @@ button, select { font: inherit; }
 .program-alert.alert-unavailable { background: #510e23ee; border-left-color: #ff6b6b; color: #fff; }
 .program-only .program-alert { font-size: clamp(11px, 1vw, 22px); }
 @media (max-width: 550px) { .program-alert { top: 28%; max-width: 70%; padding: 5px 8px; font-size: 7px; } }
+.control-status { margin: 6px 0 0; font-size: 12px; letter-spacing: 0.04em; }
+.control-status.link-ok { color: #7fe0a0; }
+.control-status.link-lost, .control-status.link-never { color: #ffb347; }

@@ -9,6 +9,7 @@ import {
   alertPolygons, assessAlertBanner, assessRadar, parseAlerts,
   type AlertFeature, type AlertFeed, type RadarMeta,
 } from "./broadcastAlerts";
+import { CONTROL_POLL_MS, controlLink, nextProgram, parseProgram, type ProgramState } from "./broadcastControl";
 import "./broadcast.css";
 
 type Location = { id: string; city: string; region: string; heading: string; lon: number; lat: number; distance: number };
@@ -104,6 +105,9 @@ export default function BroadcastStudio() {
   const [mapAlerts, setMapAlerts] = useState<AlertFeature[]>([]);
   const alertEntities = useRef<Entity[]>([]);
   const programOnly = new URLSearchParams(window.location.search).get("program") === "1";
+  const [controlOk, setControlOk] = useState<number | null>(null);
+  const [onAir, setOnAir] = useState<ProgramState | null>(null);
+  const [controlError, setControlError] = useState("");
   const assessment = assessLayer(catalog.find(item => item.id === field), nowMs, lastFetchMs);
   const isRadar = field === "radar";
   const radar = assessRadar(radarMeta, nowMs, radarFetchMs);
@@ -145,6 +149,37 @@ export default function BroadcastStudio() {
     };
     if (programOnly) bus.postMessage({ type: "hello" });
     return () => { broadcast.current = null; bus.close(); };
+  }, [programOnly]);
+
+  // Server-held on-air state: the program output (including an OBS Browser Source) follows it.
+  useEffect(() => {
+    let active = true;
+    const sceneIds = locations.map(item => item.id);
+    const fieldIds = fields.map(item => item.id);
+    const poll = async () => {
+      try {
+        const response = await fetch(API_ORIGIN + "/api/broadcast/program", { headers: { Accept: "application/json" }, cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const next = parseProgram(await response.json(), sceneIds, fieldIds);
+        if (!active) return;
+        setControlOk(Date.now());
+        setOnAir(previous => {
+          const chosen = nextProgram(previous, next);
+          if (programOnly && chosen && chosen !== previous) {
+            const shot = locations.find(item => item.id === chosen.scene);
+            if (shot) { currentScene.current = shot.id; setLocation(shot); }
+            currentField.current = chosen.field;
+            setField(chosen.field);
+          }
+          return chosen;
+        });
+      } catch {
+        // Keep the last on-air state; the control room shows the lost link.
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), CONTROL_POLL_MS);
+    return () => { active = false; window.clearInterval(timer); };
   }, [programOnly]);
 
   useEffect(() => {
@@ -331,15 +366,29 @@ export default function BroadcastStudio() {
     });
   }, [location]);
 
+  const publish = async (scene: string, nextField: string) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
+    const token = window.localStorage.getItem("earthglass-control-token");
+    if (token) headers["X-Control-Token"] = token;
+    try {
+      const response = await fetch(API_ORIGIN + "/api/broadcast/program", { method: "POST", headers, body: JSON.stringify({ scene, field: nextField }) });
+      if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Control refused (" + response.status + ")" : "HTTP " + response.status);
+      setControlError("");
+    } catch (failure) {
+      setControlError("Program output NOT updated: " + (failure instanceof Error ? failure.message : "link down"));
+    }
+  };
   const take = (item: Location) => {
     currentScene.current = item.id;
     setLocation(item);
     broadcast.current?.postMessage({ type: "scene", scene: item.id, field: currentField.current });
+    void publish(item.id, currentField.current);
   };
   const selectField = (nextField: string) => {
     currentField.current = nextField;
     setField(nextField);
     broadcast.current?.postMessage({ type: "scene", scene: currentScene.current, field: nextField });
+    void publish(currentScene.current, nextField);
   };
 
   return (
@@ -384,10 +433,15 @@ export default function BroadcastStudio() {
           </select>
           <p className="source-description">{sourceDescription}</p>
           <p className="source-status">{connection}</p>
+          <p className={"control-status link-" + controlLink(controlOk, nowMs)} role="status">
+            {controlError ? controlError :
+              controlLink(controlOk, nowMs) === "ok" ? (onAir ? "ON AIR (server): " + onAir.scene.toUpperCase() + " / " + onAir.field + " · rev " + onAir.revision : "Server link OK · nothing taken yet") :
+              controlLink(controlOk, nowMs) === "lost" ? "CONTROL LINK LOST · OBS output is holding its last shot" : "Connecting to program control"}
+          </p>
           <div className="control-caption">03 / OUTPUT</div>
           <div className="actions">
             <button type="button" onClick={() => window.open("/broadcast.html?program=1", "_blank", "noopener")}>
-              Open clean 16:9 preview
+              Open clean 16:9 output (follows server)
             </button>
             <button type="button" onClick={() => void programNode.current?.requestFullscreen()}>
               Fullscreen preview

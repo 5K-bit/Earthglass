@@ -1,0 +1,72 @@
+:root { font-family: Inter, "Segoe UI", Arial, sans-serif; color: #e9f4f6; background: #050b13; font-synthesis: none; }
+* { box-sizing: border-box; }
+html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }
+button, select { font: inherit; }
+.broadcast-shell { min-height: 100vh; padding: 26px clamp(14px, 3vw, 48px); background: radial-gradient(ellipse at 20% 8%, #152e3c 0, #07131d 35%, #03080e 84%); }
+.studio-head, .studio-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.studio-head { padding-bottom: 24px; letter-spacing: .12em; font-size: 15px; }
+.brand-symbol { color: #83bfa9; font-size: 24px; padding-right: 12px; }
+.brand-sub { font-weight: 300; color: #83bfa9; padding-left: 9px; }
+.studio-kicker, .studio-footer { font-size: 10px; color: #6b8794; font-weight: 650; letter-spacing: .2em; }
+.studio-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: 20px; }
+.program-frame { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; isolation: isolate; background: #081927; border: 1px solid #294b58; box-shadow: 0 25px 80px #0009; }
+.globe-viewport, .globe-viewport .cesium-widget, .globe-viewport .cesium-viewer, .globe-viewport .cesium-viewer-cesiumWidgetContainer { position: absolute; inset: 0; width: 100%; height: 100%; }
+.globe-viewport .cesium-widget canvas { display: block; }
+.globe-viewport .cesium-viewer-bottom { z-index: 2; opacity: .55; }
+.program-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #03111ccc 0%, #06121b20 40%, #03101c44 100%), linear-gradient(0deg, #020b17ef 0%, transparent 47%); }
+.program-top { position: absolute; left: 3.5%; right: 3.5%; top: 5%; display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; pointer-events: none; font-size: clamp(8px, 1vw, 17px); font-weight: 700; letter-spacing: .18em; }
+.program-brand { display: inline-flex; align-items: center; gap: 10px; }
+.program-brand b { background: #83bfa9; color: #081b21; border-radius: 3px; padding: 8px; letter-spacing: -.03em; font-size: 1.4em; }
+.program-brand em { color: #83bfa9; font-style: normal; }
+.program-pill { background: #1d1922e8; color: #ffbaa4; border: 1px solid #975a46; padding: 9px 12px; font-size: .8em; white-space: nowrap; }
+.program-stamp { position: absolute; right: 3.5%; top: 17%; padding: 8px 12px; background: #03121bdb; border-left: 2px solid #83bfa9; color: #c4e8e3; font-size: clamp(8px, .8vw, 13px); letter-spacing: .1em; text-align: right; pointer-events: none; }
+.program-lower { position: absolute; left: 4%; right: 4%; bottom: 5%; pointer-events: none; }
+.program-overline { color: #9cd8d1; font-size: clamp(8px, 1.05vw, 16px); font-weight: 750; letter-spacing: .19em; margin-bottom: 5px; }
+.program-title { font-weight: 750; font-size: clamp(20px, 3.9vw, 64px); line-height: 1.05; letter-spacing: -.05em; max-width: 80%; text-shadow: 0 3px 25px #0008; }
+.program-bottom { display: flex; justify-content: space-between; gap: 20px; align-items: center; border-top: 2px solid #83bfa9; padding-top: 10px; margin-top: 18px; color: #d1e1e8; font-size: clamp(8px, .9vw, 14px); letter-spacing: .11em; font-weight: 650; }
+.program-error { position: absolute; top: 35%; left: 5%; right: 5%; background: #510e23df; color: white; padding: 12px; z-index: 4; text-align: center; }
+.studio-controls { background: #0d1b25; border: 1px solid #2a414b; padding: 22px; min-width: 0; }
+.studio-controls h2 { font-weight: 650; font-size: 22px; margin: 6px 0; letter-spacing: -.035em; }
+.studio-controls p { margin: 0 0 20px; color: #9fb5c1; line-height: 1.55; font-size: 12px; }
+.control-caption { font-weight: 800; font-size: 10px; color: #83bfa9; letter-spacing: .22em; border-top: 1px solid #29404a; padding-top: 19px; margin: 21px 0 10px; }
+.control-caption:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.shot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 13px 10px; border: 1px solid #37505d; background: #102633; color: #e8f5f5; cursor: pointer; text-align: left; }
+.shot:hover, .shot.active { background: #1b3a42; border-color: #83bfa9; }
+.shot small { color: #84a5b0; font-size: 9px; letter-spacing: .13em; }
+.shot strong { font-size: 12px; }
+.shot span { font-size: 9px; letter-spacing: .15em; color: #83bfa9; margin-top: 6px; }
+.studio-controls label { display: block; color: #c3d6df; font-size: 12px; margin-bottom: 8px; }
+.studio-controls select { display: block; width: 100%; padding: 12px; border: 1px solid #45606e; color: #eff9fa; background: #102633; border-radius: 0; }
+.studio-controls .source-description { color: #9dcfc6; margin: 12px 0 5px; font-size: 10px; font-weight: 700; }
+.studio-controls .source-status { color: #829aa6; margin: 0; font-size: 10px; }
+.actions { display: grid; gap: 8px; }
+.actions button { background: #83bfa9; color: #0a2424; border: 0; padding: 12px; cursor: pointer; font-size: 12px; font-weight: 800; }
+.actions button + button { background: transparent; border: 1px solid #557267; color: #d8efec; }
+.studio-controls .safety-note { border-top: 1px solid #2d4650; margin: 22px 0 0; padding-top: 15px; font-size: 11px; color: #b4aeb3; }
+.studio-footer { padding: 18px 0; }
+.program-only { padding: 0; background: #03070c; }
+.program-only .studio-layout { display: block; }
+.program-only .program-frame { width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; box-shadow: none; }
+.program-only .program-title { font-size: clamp(30px, 4.7vw, 110px); }
+.program-only .program-top { font-size: clamp(13px, 1.2vw, 26px); }
+.program-only .program-overline { font-size: clamp(12px, 1.2vw, 22px); }
+.program-only .program-bottom { font-size: clamp(11px, 1vw, 20px); }
+.program-only .program-stamp { font-size: clamp(10px, 1vw, 18px); }
+@media (max-width: 1000px) {
+  .studio-layout { grid-template-columns: minmax(0, 1fr); }
+  .studio-controls { max-width: none; }
+  .studio-head { flex-wrap: wrap; }
+  .program-title { font-size: clamp(15px, 5vw, 48px); }
+  .program-stamp { top: 21%; }
+}
+@media (max-width: 550px) {
+  .broadcast-shell { padding: 14px; }
+  .program-pill { padding: 5px; font-size: 7px; }
+  .program-brand { gap: 4px; }
+  .program-brand b { padding: 4px; }
+  .program-title { font-size: 19px; max-width: 92%; }
+  .program-bottom { flex-wrap: wrap; margin-top: 6px; padding-top: 5px; font-size: 8px; gap: 3px; }
+  .program-stamp { top: 29%; font-size: 7px; padding: 5px; }
+  .studio-footer { display: none; }
+}

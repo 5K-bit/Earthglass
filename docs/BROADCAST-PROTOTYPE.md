@@ -1,6 +1,6 @@
 # EarthGlass Broadcast — prototype v0.1
 
-**Status: demonstration candidate. Browser-level integration verified; real OBS acceptance pending. Not certified for air.**
+**Status: demonstration candidate. Browser-level integration verified; OBS acceptance partial (OBS-01 and OBS-03 passed, four checks open). Not certified for air.**
 
 EarthGlass Broadcast is a browser-rendered, 16:9 Cesium weather storytelling prototype with a separate operator/control view and program output. It is built on the existing OBEOS Earth frontend and the EarthGlass FastAPI layer. Every presentation carries **PROTOTYPE / NOT FOR AIR**.
 

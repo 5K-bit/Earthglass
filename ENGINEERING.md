@@ -1,7 +1,7 @@
 # BES-1 pilot: EarthGlass
 
 **Status:** Pilot proposal; no on-air or live-deployment approval is implied.  
-**Canonical standard:** [BES-1](https://github.com/5K-bit/O.B.E.O.S/blob/chore/bes-1-engineering-standard/docs/standards/BES-1.md) (draft).
+**Canonical standard:** [BES-1 proposal and review](https://github.com/5K-bit/O.B.E.O.S/pull/16) (draft).
 
 ## Existing architecture and invariant
 

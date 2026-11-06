@@ -58,6 +58,12 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Keep GFS current without an operator: check every EARTHGLASS_WEATHER_REFRESH_MINUTES
+        # (default 20, 0 turns it off) and refresh layers whose model cycle is old.
+        minutes = float(os.getenv("EARTHGLASS_WEATHER_REFRESH_MINUTES", "20") or 0)
+        weather = getattr(app.state, "weather", None)
+        if weather is not None and minutes > 0:
+            weather.start_scheduler(minutes * 60)
         yield
         close = getattr(app.state, "weather_close", None)
         if close:

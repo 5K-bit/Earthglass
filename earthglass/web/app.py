@@ -5,6 +5,7 @@ Leaflet remains a lightweight demo UI; layer definitions live outside the web
 package so OBEOS Earth or any other client can consume the same registry.
 """
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 import os
 
@@ -19,6 +20,7 @@ from earthglass.control import ProgramState
 from earthglass.radar import RadarService
 from earthglass.providers import ProviderManager, ProviderUnavailable
 from earthglass.runtime import provider_manager
+from earthglass.weather.api import WeatherService
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -50,10 +52,19 @@ def create_app(
     providers: ProviderManager | None = None,
     radar: RadarService | None = None,
     program: ProgramState | None = None,
+    weather: WeatherService | None = None,
 ) -> FastAPI:
     """Build the HTTP adapter; providers can be replaced for deterministic tests."""
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        yield
+        close = getattr(app.state, "weather_close", None)
+        if close:
+            close()  # stop the weather worker thread cleanly
+
     application = FastAPI(
+        lifespan=lifespan,
         title="EarthGlass",
         version="0.4.0",
         description="Renderer-agnostic geospatial layer engine and API.",
@@ -84,6 +95,15 @@ def create_app(
     )
     application.state.program = program_state
     application.include_router(program_state.router())
+    # GFS model layers (temperature, wind, ...), served from the same backend as radar, alerts and
+    # program control. Reads retained data offline; refresh is requested per layer.
+    weather_service = weather or WeatherService(
+        Path(os.getenv("EARTHGLASS_CACHE_DIR", ".earthglass-cache")) / "weather" / "gfs",
+        lambda: os.getenv("EARTHGLASS_WEATHER_OFFLINE", "0").strip().lower() in {"1", "true", "yes"},
+    )
+    application.state.weather = weather_service
+    application.include_router(weather_service.router())
+    application.state.weather_close = weather_service.close
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.get("/health")

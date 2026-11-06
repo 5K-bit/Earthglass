@@ -126,3 +126,17 @@ def test_feature_api_returns_503_when_live_and_cache_are_unavailable(tmp_path) -
     response = local_client.get("/api/layers/earthquakes/features")
     assert response.status_code == 503
     assert "no valid cache" in response.json()["detail"]
+
+
+def test_one_backend_serves_gfs_catalog_with_radar_alerts_and_control(tmp_path, monkeypatch):
+    from earthglass.weather.api import WeatherService
+
+    weather = WeatherService(tmp_path / "gfs", lambda: True)
+    try:
+        client = TestClient(create_app(weather=weather))
+        catalog = client.get("/api/weather/layers")
+        assert catalog.status_code == 200 and len(catalog.json()) == 6
+        assert client.get("/api/broadcast/program").status_code == 200
+        assert client.get("/health").json()["status"] == "ok"
+    finally:
+        weather.close()

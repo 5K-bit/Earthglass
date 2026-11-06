@@ -25,6 +25,16 @@ export function parseProgram(raw: unknown, scenes: readonly string[], fields: re
   };
 }
 
+/**
+ * Set when the server started without the shot that was last committed (its saved state was
+ * unreadable). Independent of the revision: it is reported even when nothing is on air yet.
+ */
+export function parseRecovery(raw: unknown): string | null {
+  const persistence = (raw as { persistence?: { recovered_from?: unknown } } | null)?.persistence;
+  const value = persistence?.recovered_from;
+  return typeof value === "string" && value ? value : null;
+}
+
 /** Apply only a newer revision. A lower one means the server restarted or an old reply arrived late. */
 export function nextProgram(current: ProgramState | null, incoming: ProgramState | null): ProgramState | null {
   if (!incoming) return current;

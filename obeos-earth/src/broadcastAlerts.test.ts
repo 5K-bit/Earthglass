@@ -62,6 +62,12 @@ describe("alert banner safety", () => {
     expect(assessAlertBanner({ features: [], lastFetchMs: NOW - 1000, ok: true }, "NEW YORK", NOW).state).toBe("unavailable");
     expect(alertFeedFresh(base, NOW)).toBe(true);
   });
+  it("a future-dated feed (clock mismatch) never produces 'no alerts'", () => {
+    const base = fresh([]);
+    expect(assessAlertBanner({ ...base, retrievedMs: NOW + 60 * 60_000 }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(assessAlertBanner({ ...base, lastFetchMs: NOW + 60 * 60_000 }, "NEW YORK", NOW).state).toBe("unavailable");
+    expect(assessAlertBanner({ ...base, retrievedMs: NOW + 60_000 }, "NEW YORK", NOW).state).toBe("clear");
+  });
   it("reads freshness from the server's cache metadata", () => {
     const body = (stale: unknown, retrieved: string | undefined) => ({
       type: "FeatureCollection", features: [],

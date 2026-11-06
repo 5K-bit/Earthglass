@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { controlLink, nextProgram, parseProgram } from "./broadcastControl";
+import { controlLink, nextProgram, parseProgram, parseRecovery } from "./broadcastControl";
 
 const scenes = ["nyc", "mia"];
 const fields = ["radar", "temperature"];
 const good = { scene: "mia", field: "radar", revision: 3, updated_at: "2026-01-01T00:00:00Z" };
+
+describe("parseRecovery", () => {
+  it("reports a startup without the previously committed shot, and clears once the server stops reporting it", () => {
+    expect(parseRecovery({ revision: 0, persistence: { ok: true, recovered_from: "ValueError: bad json" } })).toBe("ValueError: bad json");
+    expect(parseRecovery({ revision: 1, persistence: { ok: true, recovered_from: null } })).toBeNull();
+    expect(parseRecovery({})).toBeNull();
+    expect(parseRecovery(null)).toBeNull();
+  });
+});
 
 describe("parseProgram", () => {
   it("accepts a valid state", () => {

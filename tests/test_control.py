@@ -48,6 +48,18 @@ def test_corrupt_saved_state_is_reported_and_quarantined(tmp_path):
     assert (tmp_path / "program.json.corrupt").exists() and not path.exists()
 
 
+def test_startup_recovery_warning_clears_after_a_successful_save(tmp_path):
+    path = tmp_path / "program.json"
+    path.write_text("{not json", encoding="utf-8")
+    state = ProgramState(path, clock=lambda: FIXED)
+    client = TestClient(create_app(program=state))
+    first = client.get("/api/broadcast/program").json()
+    assert first["revision"] == 0 and first["persistence"]["ok"] is True and first["persistence"]["recovered_from"]
+    taken = client.post("/api/broadcast/program", json={"scene": "mia", "field": "radar"}).json()
+    assert taken["persistence"]["recovered_from"] is None
+    assert client.get("/api/broadcast/program").json()["persistence"]["recovered_from"] is None
+
+
 def test_failed_save_is_reported_not_silent(tmp_path, monkeypatch):
     state, client = make(tmp_path)
     assert client.post("/api/broadcast/program", json={"scene": "mia", "field": "radar"}).json()["persistence"]["ok"]

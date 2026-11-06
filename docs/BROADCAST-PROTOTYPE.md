@@ -1,6 +1,6 @@
 # EarthGlass Broadcast — prototype v0.1
 
-**Status: demonstration candidate. Browser-level integration verified; OBS acceptance: OBS-01, 02, 03, 05 and 06 passed (02, 03, 05, 06 on operator confirmation), OBS-04 partial. Not certified for air.**
+**Status: demonstration candidate. Browser-level integration verified; OBS acceptance: operator reports all six checks passed; video evidence is partial. Not certified for air.**
 
 EarthGlass Broadcast is a browser-rendered, 16:9 Cesium weather storytelling prototype with a separate operator/control view and program output. It is built on the existing OBEOS Earth frontend and the EarthGlass FastAPI layer. Every presentation carries **PROTOTYPE / NOT FOR AIR**.
 
@@ -41,7 +41,7 @@ Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN`
 
 In OBS Studio, create a Browser Source pointing to `/broadcast.html?program=1`, with canvas source dimensions **1920 × 1080** and an initial **30 FPS** capture setting (a setting, not a measured render guarantee). Open the operator view separately.
 
-**Real OBS acceptance has been run (2026-11-04/05) with five of six checks passed and OBS-04 partial.** The six checks are defined in the [OBS test guide](OBS-TEST-GUIDE.md); Several results rest on operator confirmation rather than video, and the long alert-feed-unavailable state has not been captured in OBS. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
+**Real OBS acceptance has been run (2026-11-04/05) with the operator reporting all six checks passed.** The six checks are defined in the [OBS test guide](OBS-TEST-GUIDE.md); Recorded video evidence is complete only for the first check; the rest rest on the operator's report, and the long alert-feed-unavailable state and a GFS timestamp have not been captured. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
 
 ## Build and verification
 

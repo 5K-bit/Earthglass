@@ -1,8 +1,8 @@
-# EarthGlass Broadcast v0.1 — demonstration validation record (OBS acceptance: six operator passes, recorded evidence incomplete)
+# EarthGlass Broadcast v0.1 — demonstration validation record (OBS acceptance: five checks on video, GFS timestamp open)
 
 **Date:** 2026-11-04 (operator local date)  
 **Product:** EarthGlass Broadcast prototype v0.1  
-**Release classification:** **Demonstration candidate — operator reports all 6 OBS checks passed; recorded evidence covers 1 fully and the rest partly (see table) — PROTOTYPE / NOT FOR AIR**  
+**Release classification:** **Demonstration candidate — operator reports all 6 OBS checks passed; recorded evidence covers 5 (OBS-01, 02, 03, 05, 06); OBS-04 lacks a real GFS timestamp — PROTOTYPE / NOT FOR AIR**  
 **Scope:** Unattended/station production approval **not granted**.  
 **Repository:** [5K-bit/Earthglass](https://github.com/5K-bit/Earthglass)  
 **Implementation track:** [PR #6](https://github.com/5K-bit/Earthglass/pull/6), [PR #7](https://github.com/5K-bit/Earthglass/pull/7), [PR #8](https://github.com/5K-bit/Earthglass/pull/8), [PR #9](https://github.com/5K-bit/Earthglass/pull/9)
@@ -21,15 +21,24 @@
 | ID | Check | Operator result | Recorded evidence | Evidence still missing |
 |---|---|---|---|---|
 | OBS-01 | Browser Source at `broadcast.html?program=1` renders the 3D globe. | PASS | On video: both recordings show the globe; the first runs 32 min with radar observation time advancing (23:48 → 00:18 UTC). | None. |
-| OBS-02 | Staging Miami without TAKE leaves the OBS program on New York. | PASS | Not on video (OBS records only program output). Observed in assistant-run browser tabs. | Full-screen recording with the operator page visible. |
-| OBS-03 | TAKE changes the OBS program to the staged shot, following server state. | PASS | On video: program changes New York → Miami → San Francisco → Chicago (recording 2); server state then `chi / radar`, revision 5. TAKE presses not visible. | Operator page visible during the takes. |
-| OBS-04 | Product identity and radar-observation / model-cycle timestamps are shown. | PASS | On video: radar identity and observed time (Nov 5, 00:20 and 00:24 UTC); alert expiry times; temperature shot stamped "illustrative data · not a forecast". | A GFS model-cycle timestamp has not been captured in any recording. |
-| OBS-05 | Backend stopped: program holds its last shot; operator shows **CONTROL LINK LOST** with TAKE disabled; stale data is withheld or marked unavailable. | PASS | On video: recording 3, API-only stop of about 93 s, program held Miami throughout; alert banner correctly stayed (under the 3-minute limit). Recording 2 (unplanned restart of API and web servers): black gap about 2:15, then ALERT FEED UNAVAILABLE and RADAR UNAVAILABLE / NO CURRENT RADAR about 2:25–2:55. | CONTROL LINK LOST and disabled TAKE are not on video. A planned outage over 3 minutes showing ALERT FEED UNAVAILABLE with the operator page visible has not been recorded. |
-| OBS-06 | Backend restarted: control link returns and the committed on-air selection recovers. | PASS | On video: recording 3, program state remained Miami after the API restart; recording 2, radar returned with a fresh observation time and a further shot (Chicago) was taken; alert banner lagged about 1 min (alerts refresh every 60 s). | Control link returning and TAKE re-enabling are not on video. |
+| OBS-02 | Staging Miami without TAKE leaves the OBS program on New York. | PASS | On video (recording 4, side by side): from 0:00 the operator page has Miami staged while the OBS program stays on New York until 0:26; the cut to Miami follows the TAKE TO AIR press at about 0:26–0:28. The click that staged Miami is before the recording starts. | None for the stay-on-New-York behavior. |
+| OBS-03 | TAKE changes the OBS program to the staged shot, following server state. | PASS | On video (recording 4): OBS changes New York → Miami at about 0:26–0:28 with the cursor on TAKE TO AIR; the page then shows ON AIR: MIA / radar. Server state at that time: `mia / radar`, revision 9. Earlier, recording 2: New York → Miami → San Francisco → Chicago. | None. |
+| OBS-04 | Product identity and radar-observation / model-cycle timestamps are shown. | PARTIAL | On video: radar identity and observed time (e.g. Nov 6, 19:35 UTC in recording 4), alert expiry times, and the stale-radar warning. Temperature shots are stamped illustrative. | **A real GFS model-cycle timestamp is not captured.** On commit `fd159da` the API does not serve the GFS catalog (`/api/weather/layers` returns 404); this depends on the backend unification work. |
+| OBS-05 | Backend stopped: program holds its last shot; operator shows **CONTROL LINK LOST** with TAKE disabled; stale data is withheld or marked unavailable. | PASS | On video (recording 4): the API console window is visible at about 5:26–5:30 and closed by mouse about 5:30–5:45 (about 14:41:30–14:41:45). By about 5:52 the operator page shows CONTROL LINK LOST with TAKE TO AIR greyed, and OBS holds Miami. ALERT FEED UNAVAILABLE appears on OBS and the operator page at about 7:30–7:36 (about 14:43:30–14:43:35), roughly 2 min after the API closed; the 3-minute limit is measured from the last successful alert fetch. A red RADAR OUT OF DATE / NO RADAR IS SHOWN box follows at about 8:00–8:05. API confirmed down by a health check at 14:42:24. | None. |
+| OBS-06 | Backend restarted: control link returns and the committed on-air selection recovers. | PASS | On video (recording 4): the API was relaunched at 14:47:21 and answered by 14:48:07; on the server the on-air state remained `mia / radar`, revision 9, with nothing staged. TAKE TO AIR is re-enabled by about 12:02–12:10 (about 14:48:01–14:48:09); the flood-statement banner and fresh radar return shortly after. OBS showed Miami throughout. | The control-link text returning to "Server link OK" was not read frame by frame. |
 
 **OBS setup:** Browser Source, nominal 1920 × 1080, with initial 30 FPS source configuration. **This is not a measured 30 FPS or 1080p rendering benchmark.**
 
-**Operator attestation (2026-11-06):** the operator states that every step requested in the OBS tests worked as expected, including the wait for the alert-feed-unavailable state, and asks that the checks be recorded as passed. Recorded as attested, not independently evidenced: the only recording of the planned outage (recording 3) shows an outage of about 93 s, which is below the 3-minute alert threshold, and no recording shows the operator page or the GFS model field. The Operator result column records that statement; the Recorded evidence and Evidence still missing columns record what the recordings show. OBS-04's GFS timestamp and the alert-unavailable part of OBS-05 rest on the statement alone.
+### Recording 4 — side-by-side run on merged `main` (2026-11-06)
+
+- **Tested commit:** `fd159da541dd34766098bd59afd09a6d2a4e025a` (`main`, after PRs #10 and #11).
+- **Setup:** OBS Studio 32.0.4 Browser Source `http://127.0.0.1:5180/broadcast.html?program=1` beside the operator page `http://127.0.0.1:5180/broadcast.html`, one screen, Windows 11. API on 127.0.0.1:8000, web app on 5180, cache default.
+- **Files (stored outside Git):** `Screen Recording 2026-11-06 144909.mp4` and `OBS screen recording.mp4`, 13 min 10 s, 1918×1078. The two files are byte-identical; the full-screen capture of both windows was copied under both names. Video time 0:00 is 14:35:59 local (19:35:59 UTC).
+- **Timeline (video time, approximate):** 0:26–0:28 TAKE and cut to Miami; about 5:30–5:45 API closed; about 5:52 CONTROL LINK LOST and TAKE greyed; about 7:30–7:36 ALERT FEED UNAVAILABLE; 14:47:21 API relaunched; about 12:02–12:10 TAKE re-enabled; program on Miami throughout.
+- **Not covered:** a real GFS model field (see OBS-04). A first attempt at 14:30 (not used) failed because the API did not allow the web page's origin; the API was restarted with the correct allowed origin before the run.
+- Times were read from contact-sheet frames, so allow a few seconds either way.
+
+**Operator attestation (2026-11-06):** the operator states that every step requested in the OBS tests worked as expected, including the wait for the alert-feed-unavailable state, and asks that the checks be recorded as passed. Recorded as attested, not independently evidenced: the only recording of the planned outage (recording 3) shows an outage of about 93 s, which is below the 3-minute alert threshold, and at that time no recording showed the operator page or the GFS model field (recording 4, below, later supplied the operator page evidence). The Operator result column records that statement; the Recorded evidence and Evidence still missing columns record what the recordings show. OBS-04's GFS timestamp and the alert-unavailable part of OBS-05 rest on the statement alone.
 
 ## Safety fixes and additional verification
 
@@ -41,7 +50,8 @@
 
 - [ ] Attach the OBS recordings (partly done, stored outside Git) and record hardware details (GPU, driver, OBS version, render frame times).
 - [x] Force an expired radar frame in a browser run (done); repeat it inside OBS.
-- [ ] Record a full-screen capture (Windows Win+Shift+R) showing the operator page beside OBS for OBS-02/05/06, with an API outage over 3 minutes to show ALERT FEED UNAVAILABLE; exercise the model field for OBS-04.
+- [x] Full-screen capture with the operator page beside OBS: stage without TAKE, TAKE, API outage with ALERT FEED UNAVAILABLE, recovery (recording 4, commit `fd159da`).
+- [ ] Capture a real GFS model field with its model-cycle timestamp in OBS (needs the GFS catalog served by the backend).
 - [ ] Run extended soak testing (multiple days), network impairment, alert feed loss/recovery and clock-skew scenarios.
 - [ ] Measure sustained 1080p/60 and target hardware performance; evaluate 4K separately if required.
 - [ ] Have a qualified station meteorologist review severe-weather workflows, alert semantics, geography and data attribution.
@@ -63,7 +73,7 @@ PR #9 was reconciled with the newly merged `main` before its final CI run. The c
 
 ## Acceptance decision
 
-**GO for supervised demonstrations and station pilot discussions (operator-attested; see attestation above).** The operator reports all six checks passed. Recorded evidence is complete only for OBS-01; the gaps are listed per check in the table above (chiefly: the operator page on video, a GFS model-cycle timestamp, and a planned 3+ minute alert-feed-unavailable outage). "Demonstration Validated" is not claimed until those are closed.  
+**GO for supervised demonstrations and station pilot discussions (operator-attested; see attestation above).** The operator reports all six checks passed. Recorded evidence now covers OBS-01, 02, 03, 05 and 06 (recording 4, tested commit `fd159da`). The one remaining gap is OBS-04: a real GFS model-cycle timestamp has not been captured. "Demonstration Validated" is not claimed until those are closed.  
 **NO-GO for unattended live broadcast, emergency-alert decision-making, production service commitments, or removing the PROTOTYPE / NOT FOR AIR watermark.**
 
 The Apache-2.0 EarthGlass core remains open source. Commercial value is in the station integration, branding, operator workflows, deployment, training and reliability support. This evidence record is a scope-limited demonstration acceptance, not third-party certification.

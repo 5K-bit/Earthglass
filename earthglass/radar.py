@@ -1,4 +1,7 @@
-"""NOAA CONUS base-reflectivity radar mosaic, served from a retained, time-stamped frame.
+"""NOAA CONUS base-reflectivity radar mosaic, served from retained, immutable, time-stamped frames.
+
+Each frame is stored under a name derived from its observation time and is never rewritten, so a
+URL always returns the picture that matches the time reported with it.
 
 The mosaic comes from the NCEP GeoServer WMS (NOAA/NWS MRMS-derived). The frame's
 *observation* time is read from the WMS time dimension and exposed separately from the
@@ -30,6 +33,9 @@ ATTRIBUTION = "NOAA / National Weather Service (MRMS base reflectivity)"
 USER_AGENT = "EarthGlass/0.4 (+https://github.com/5K-bit/Earthglass)"
 # Radar mosaics update about every two minutes; older than this is not "current".
 MAX_OBSERVATION_AGE_SECONDS = 15 * 60
+# Older frames kept on disk besides the current one.
+RETAINED_FRAMES = 6
+FRAME_ID = re.compile(r"^radar-\d{8}T\d{6}Z$")
 
 Fetcher = Callable[[str, float], bytes]
 
@@ -97,43 +103,63 @@ class RadarService:
         self._lock = Lock()
         self._error: str | None = None
 
-    @property
-    def image_path(self) -> Path:
-        return self.directory / "radar-conus.png"
+    @staticmethod
+    def frame_id(observed_at: str) -> str:
+        return "radar-" + parse_timestamp(observed_at).strftime("%Y%m%dT%H%M%SZ")
+
+    def frame_path(self, frame_id: str) -> Path:
+        return self.directory / "frames" / f"{frame_id}.png"
 
     @property
     def meta_path(self) -> Path:
-        return self.directory / "radar-conus.json"
+        # Points at the current frame. The frame files themselves are immutable.
+        return self.directory / "radar-current.json"
 
     def _load_meta(self) -> dict[str, Any] | None:
         try:
             meta = json.loads(self.meta_path.read_text(encoding="utf-8"))
             parse_timestamp(meta["observed_at"])
             parse_timestamp(meta["retrieved_at"])
-            return meta if self.image_path.is_file() else None
+            if meta["frame_id"] != self.frame_id(meta["observed_at"]):
+                return None
+            return meta if self.frame_path(meta["frame_id"]).is_file() else None
         except (OSError, KeyError, ValueError, TypeError):
             return None
 
     def _atomic_write(self, target: Path, data: bytes) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile(dir=self.directory, delete=False) as handle:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile(dir=target.parent, delete=False) as handle:
             handle.write(data)
             temp = Path(handle.name)
         temp.replace(target)
+
+    def _prune(self, keep: str) -> None:
+        frames = sorted((self.directory / "frames").glob("radar-*.png"), key=lambda p: p.name, reverse=True)
+        for old in frames[RETAINED_FRAMES + 1:]:
+            if old.stem != keep:
+                try:
+                    old.unlink()
+                except OSError:
+                    pass
 
     def refresh(self) -> dict[str, Any]:
         observed_at = latest_observation_time(self.fetcher(capabilities_url(), self.timeout))
         image = self.fetcher(map_url(observed_at), self.timeout)
         if not image.startswith(b"\x89PNG"):
             raise ValueError("radar GetMap did not return a PNG image")
+        frame_id = self.frame_id(observed_at)
         meta = {
+            "frame_id": frame_id,
             "observed_at": observed_at,
             "retrieved_at": isoformat(self.clock()),
             "source_url": WMS_BASE,
         }
-        # Image first, metadata last: metadata never points at a missing or partial frame.
-        self._atomic_write(self.image_path, image)
+        # Frame first, metadata last: metadata never points at a missing or partial frame.
+        # An existing frame for the same observation is kept as is: frames are immutable.
+        if not self.frame_path(frame_id).is_file():
+            self._atomic_write(self.frame_path(frame_id), image)
         self._atomic_write(self.meta_path, json.dumps(meta).encode("utf-8"))
+        self._prune(frame_id)
         self._error = None
         return meta
 
@@ -171,7 +197,8 @@ class RadarService:
             "error": self._error,
             "bbox": list(BBOX),
             "coverage": "CONUS only",
-            "image": "/weather/radar/latest.png",
+            "frame_id": meta["frame_id"],
+            "image": f"/weather/radar/frames/{meta['frame_id']}.png",
             "attribution": ATTRIBUTION,
             "source_url": meta.get("source_url", WMS_BASE),
         }
@@ -186,12 +213,25 @@ class RadarService:
             except RadarUnavailable as exc:
                 raise HTTPException(503, f"Radar unavailable: {exc}") from exc
 
+        @router.get("/weather/radar/frames/{frame_id}.png")
+        def radar_frame(frame_id: str) -> FileResponse:
+            # A frame URL names one observation and never changes, so it may be cached forever.
+            path = self.frame_path(frame_id)
+            if not FRAME_ID.match(frame_id) or not path.is_file():
+                raise HTTPException(404, "Radar frame not found")
+            return FileResponse(
+                path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"}
+            )
+
         @router.get("/weather/radar/latest.png")
         def radar_image() -> FileResponse:
+            # Convenience alias for the current frame. Clients should use the frame URL from the metadata.
             try:
-                self.status()
+                meta = self.status()
             except RadarUnavailable as exc:
                 raise HTTPException(503, "Radar unavailable") from exc
-            return FileResponse(self.image_path, media_type="image/png", headers={"Cache-Control": "no-cache"})
+            return FileResponse(
+                self.frame_path(meta["frame_id"]), media_type="image/png", headers={"Cache-Control": "no-cache"}
+            )
 
         return router

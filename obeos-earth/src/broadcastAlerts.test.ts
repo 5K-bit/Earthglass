@@ -39,6 +39,9 @@ describe("radar safety", () => {
     }
     expect(assessRadar({ ...radar, stale: true }, NOW, NOW).observedAt).toBe(radar.observed_at);
     expect(assessRadar(radar, NOW, NOW).image).toBe("/weather/radar/latest.png");
+    const framed = "/weather/radar/frames/radar-20261104T184612Z.png";
+    expect(assessRadar({ ...radar, image: framed }, NOW, NOW).image).toBe(framed);
+    expect(assessRadar({ ...radar, image: "/weather/radar/frames/../../x.png" }, NOW, NOW).state).toBe("unavailable");
   });
   it("rejects untrusted image paths, bad boxes and future timestamps", () => {
     expect(assessRadar({ ...radar, image: "https://evil.example/r.png" }, NOW, NOW).state).toBe("unavailable");

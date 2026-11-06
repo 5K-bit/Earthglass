@@ -85,6 +85,60 @@ def test_non_png_response_is_rejected(tmp_path):
 
 def test_http_api_serves_metadata_and_image(tmp_path):
     api = TestClient(create_app(radar=RadarService(tmp_path, fetcher=fetcher([]), clock=lambda: NOW)))
-    assert api.get("/api/weather/radar").json()["image"] == "/weather/radar/latest.png"
-    image = api.get("/weather/radar/latest.png")
+    meta = api.get("/api/weather/radar").json()
+    assert meta["image"] == "/weather/radar/frames/radar-20261104T184155Z.png"
+    image = api.get(meta["image"])
     assert image.status_code == 200 and image.content == PNG
+    assert "immutable" in image.headers["cache-control"]
+    assert api.get("/weather/radar/latest.png").content == PNG
+
+
+def test_each_frame_url_keeps_its_own_picture_after_a_newer_frame_arrives(tmp_path):
+    caps = {"v": CAPS}
+    pic = {"v": b"\x89PNGfirst"}
+    clock = {"now": NOW}
+
+    def fetch(url, timeout):
+        return caps["v"] if "GetCapabilities" in url else pic["v"]
+
+    service = RadarService(tmp_path, fetcher=fetch, clock=lambda: clock["now"])
+    api = TestClient(create_app(radar=service))
+    first = api.get("/api/weather/radar").json()
+    caps["v"] = CAPS.replace(b"18:41:55", b"18:43:58")
+    pic["v"] = b"\x89PNGsecond"
+    clock["now"] = NOW + timedelta(seconds=130)
+    second = api.get("/api/weather/radar").json()
+    assert first["observed_at"] != second["observed_at"] and first["image"] != second["image"]
+    # the older URL still returns the older picture, the newer URL the newer one
+    assert api.get(first["image"]).content == b"\x89PNGfirst"
+    assert api.get(second["image"]).content == b"\x89PNGsecond"
+
+
+def test_same_observation_never_rewrites_its_frame(tmp_path):
+    pic = {"v": b"\x89PNGone"}
+    clock = {"now": NOW}
+
+    def fetch(url, timeout):
+        return CAPS if "GetCapabilities" in url else pic["v"]
+
+    service = RadarService(tmp_path, fetcher=fetch, clock=lambda: clock["now"])
+    api = TestClient(create_app(radar=service))
+    url = api.get("/api/weather/radar").json()["image"]
+    pic["v"] = b"\x89PNGother"
+    clock["now"] = NOW + timedelta(seconds=130)
+    api.get("/api/weather/radar")
+    assert api.get(url).content == b"\x89PNGone"
+
+
+def test_old_frames_are_pruned_and_bad_ids_refused(tmp_path):
+    service = RadarService(tmp_path, fetcher=fetcher([]), clock=lambda: NOW)
+    current = service.status()["frame_id"]
+    frames = tmp_path / "frames"
+    for n in range(10):
+        (frames / f"radar-2026110{1 + n % 3}T0{n}0000Z.png").write_bytes(PNG)
+    service._prune(current)
+    assert len(list(frames.glob("radar-*.png"))) <= 7
+    assert service.frame_path(current).is_file()
+    api = TestClient(create_app(radar=service))
+    assert api.get("/weather/radar/frames/..%2Fx.png").status_code == 404
+    assert api.get("/weather/radar/frames/radar-19990101T000000Z.png").status_code == 404

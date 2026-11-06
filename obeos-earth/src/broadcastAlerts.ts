@@ -24,7 +24,7 @@ export type RadarAssessment = {
   rectangle: [number, number, number, number] | null;
 };
 
-const SAFE_RADAR_IMAGE = /^\/weather\/radar\/latest\.png$/;
+const SAFE_RADAR_IMAGE = /^\/weather\/radar\/(latest\.png|frames\/radar-\d{8}T\d{6}Z\.png)$/;
 
 export function assessRadar(meta: RadarMeta | null, nowMs: number, lastFetchMs: number | null): RadarAssessment {
   const none = { observedAt: null, image: null, rectangle: null };

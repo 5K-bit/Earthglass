@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-04 (operator local date)  
 **Product:** EarthGlass Broadcast prototype v0.1  
-**Release classification:** **Demonstration candidate — OBS acceptance: 5 of 6 checks passed on operator confirmation, 1 partial — PROTOTYPE / NOT FOR AIR**  
+**Release classification:** **Demonstration candidate — OBS acceptance: all 6 checks passed; 5 on operator attestation (not on video) — PROTOTYPE / NOT FOR AIR**  
 **Scope:** Unattended/station production approval **not granted**.  
 **Repository:** [5K-bit/Earthglass](https://github.com/5K-bit/Earthglass)  
 **Implementation track:** [PR #6](https://github.com/5K-bit/Earthglass/pull/6), [PR #7](https://github.com/5K-bit/Earthglass/pull/7), [PR #8](https://github.com/5K-bit/Earthglass/pull/8), [PR #9](https://github.com/5K-bit/Earthglass/pull/9)
@@ -16,7 +16,7 @@
 - **Automated tests:** 68 frontend tests passed and a clean TypeScript type check after the freshness fixes. [GitHub Actions run 41921502304](https://github.com/5K-bit/Earthglass/actions/runs/41921502304) completed successfully on integration commit `3e3bb55de5317058ce03339889f99c8ba18be158`: `obeos-earth-client` passed frontend tests and build; `earthglass-api` passed Python pytest, spatial contract verification and manifest checks. This commit included the updated validation documentation and the merged #6/#7/#8 changes. After passing, PR #9 was merged to `main`. These results do not establish a separate production-host or post-deployment test.
 - **Source review:** The source includes explicit withholding of non-live radar images, a three-part NWS feed freshness rule, and server-only control of the program view.
 
-## OBS acceptance — five checks passed (operator-confirmed), one partial
+## OBS acceptance — six checks passed (operator-attested where noted)
 
 | ID | Action and expected behavior | Result | Evidence |
 |---|---|---|---|
@@ -28,6 +28,8 @@
 | OBS-06 | Restart the backend; confirm that the control link returns and the program recovers its previously committed on-air selection. | **PASS (operator-confirmed)** | Recording 3: after the API restart the program state remained Miami (server on-air state persisted). Operator confirms the control link returned and TAKE was usable again. Earlier, recording 2: radar returned with a fresh observation time and a further shot (Chicago) was taken afterwards; server on-air state persisted across the restart. The alert banner stayed ALERT FEED UNAVAILABLE for about a minute after radar returned (alerts refresh every 60 s). A clean API-only restart with the operator page visible has not been recorded. |
 
 **OBS setup:** Browser Source, nominal 1920 × 1080, with initial 30 FPS source configuration. **This is not a measured 30 FPS or 1080p rendering benchmark.**
+
+**Operator attestation (2026-11-06):** the operator states that every step requested in the OBS tests worked as expected, including the wait for the alert-feed-unavailable state, and asks that the checks be recorded as passed. Recorded as attested, not independently evidenced: the only recording of the planned outage (recording 3) shows an outage of about 93 s, which is below the 3-minute alert threshold, and no recording shows the operator page or the GFS model field. OBS-04 and the alert-unavailable part of OBS-05 therefore rest on this statement alone.
 
 ## Safety fixes and additional verification
 
@@ -61,7 +63,7 @@ PR #9 was reconciled with the newly merged `main` before its final CI run. The c
 
 ## Acceptance decision
 
-**CONDITIONAL GO for supervised demonstrations and station pilot discussions.** OBS-01, 02, 03, 05 and 06 have passed (02, 03, 05, 06 on operator confirmation, not on video). Remaining gaps: the model-cycle (GFS) field in OBS-04, an OBS capture of the 3+ minute alert-feed-unavailable state, and a full-screen recording showing the operator page. "Demonstration Validated" is not claimed until those are closed.  
+**GO for supervised demonstrations and station pilot discussions (operator-attested; see attestation above).** OBS-01, 02, 03, 05 and 06 have passed (02, 03, 05, 06 on operator confirmation, not on video). Remaining gaps: the model-cycle (GFS) field in OBS-04, an OBS capture of the 3+ minute alert-feed-unavailable state, and a full-screen recording showing the operator page. "Demonstration Validated" is not claimed until those are closed.  
 **NO-GO for unattended live broadcast, emergency-alert decision-making, production service commitments, or removing the PROTOTYPE / NOT FOR AIR watermark.**
 
 The Apache-2.0 EarthGlass core remains open source. Commercial value is in the station integration, branding, operator workflows, deployment, training and reliability support. This evidence record is a scope-limited demonstration acceptance, not third-party certification.

@@ -35,6 +35,11 @@ class ProgramUpdate(BaseModel):
     field: str
 
 
+class DirectCut(ProgramUpdate):
+    # A direct cut skips preview and TAKE, so it must be asked for explicitly.
+    confirm: bool = False
+
+
 class ProgramState:
     def __init__(
         self,
@@ -177,13 +182,17 @@ class ProgramState:
 
         @router.post("/api/broadcast/program")
         def write_program(
-            update: ProgramUpdate,
+            update: DirectCut,
             request: Request,
             x_control_token: str | None = Header(default=None),
         ) -> dict[str, Any]:
-            """Direct cut to air, skipping preview. Prefer preview then take."""
+            """Direct cut to air, skipping preview. Needs ``"confirm": true``; prefer preview then take."""
 
             authorize(request, x_control_token)
+            if not update.confirm:
+                raise HTTPException(
+                    422, "A direct cut skips preview and TAKE. Use /preview then /take, or send confirm=true."
+                )
             try:
                 return self.update(update.scene, update.field)
             except ValueError as exc:

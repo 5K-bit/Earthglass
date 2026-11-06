@@ -382,6 +382,10 @@ export default function BroadcastStudio() {
             <span className="program-pill">PROTOTYPE / NOT FOR AIR</span>
           </div>
           <div className="program-stamp">{sourceDescription}</div>
+          {isRadar && radar.state !== "live" && <div className="program-radar-warning" role="alert" data-state={radar.state}>
+            <strong>{radar.state === "stale" ? "RADAR OUT OF DATE" : "RADAR UNAVAILABLE"}</strong>
+            <span>NO RADAR IS SHOWN{radar.observedAt ? " · LAST FRAME " + formatCycle(radar.observedAt) : ""}</span>
+          </div>}
           <div className={"program-alert alert-" + banner.state} role="status" data-severity={banner.severity ?? ""}>
             <b>{banner.state === "alert" ? "⚠ " : ""}{banner.headline}</b>
             <span>{banner.detail}{banner.count > 1 ? " · +" + (banner.count - 1) + " MORE" : ""}</span>
@@ -389,7 +393,7 @@ export default function BroadcastStudio() {
           <div className="program-lower">
             <div className="program-overline">{location.region} / {fields.find(item => item.id === field)?.label.toUpperCase()}</div>
             <div className="program-title">{location.heading}</div>
-            <div className="program-bottom"><span>{location.city}</span><span>{isRadar ? (radar.observedAt ? "RADAR OBSERVED " + formatCycle(radar.observedAt) : "NO RADAR DATA") : assessment.cycle ? "MODEL CYCLE " + formatCycle(assessment.cycle) : "SYNTHETIC WEATHER VISUALIZATION"}</span></div>
+            <div className="program-bottom"><span>{location.city}</span><span>{isRadar ? (radar.state !== "live" ? "NO CURRENT RADAR" : "RADAR OBSERVED " + formatCycle(radar.observedAt ?? "")) : assessment.cycle ? "MODEL CYCLE " + formatCycle(assessment.cycle) : "SYNTHETIC WEATHER VISUALIZATION"}</span></div>
           </div>
           {error && <p role="status" className="program-error">{error}</p>}
         </section>

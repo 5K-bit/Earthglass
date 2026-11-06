@@ -1,6 +1,6 @@
 # EarthGlass Broadcast — prototype v0.1
 
-**Status: Demonstration Validated (operator-reported OBS acceptance on 2026-11-04). Not certified for air.**
+**Status: demonstration candidate. Browser-level integration verified; OBS acceptance: operator reports all six checks passed; video evidence is partial. Not certified for air.**
 
 EarthGlass Broadcast is a browser-rendered, 16:9 Cesium weather storytelling prototype with a separate operator/control view and program output. It is built on the existing OBEOS Earth frontend and the EarthGlass FastAPI layer. Every presentation carries **PROTOTYPE / NOT FOR AIR**.
 
@@ -32,7 +32,7 @@ Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN`
 
 ## Weather-data truth and failure behavior
 
-- **Observed radar:** NOAA/NCEP CONUS base-reflectivity mosaic, placed on a geographic rectangle with its **observation** time (not download time). If the metadata, observation age, or connection fails validation, the image is withheld and any prior radar overlay is removed. The product may retain the time in a **RADAR STALE · NO DATA SHOWN** label. The freshness threshold is 15 minutes, with additional server/client freshness rules. No simulated radar is substituted.
+- **Observed radar:** NOAA/NCEP CONUS base-reflectivity mosaic, placed on a geographic rectangle with its **observation** time (not download time). If the metadata, observation age, or connection fails validation, the image is withheld and any prior radar overlay is removed. The program output shows a large **RADAR OUT OF DATE** (or **RADAR UNAVAILABLE**) warning, keeps the last observation time in a **RADAR STALE · NO DATA SHOWN** label, and replaces the bottom line with **NO CURRENT RADAR**. The freshness threshold is 15 minutes, with additional server/client freshness rules. No simulated radar is substituted.
 - **NWS alerts:** Only actual (non-test/non-exercise), unexpired alerts are considered. Location-specific alert banners include zone-only alerts; only alerts with polygon geometries appear as globe shapes. The browser requires the backend cache flag to be explicitly non-stale, an NWS retrieval age of at most **5 minutes**, and its own last successful fetch within **3 minutes**. Missing freshness metadata is treated as unavailable. An unavailable/stale alert feed does not display **NO ACTIVE NWS ALERTS** or stale alert polygons.
 - **NOAA GFS:** Temperature, 10 m wind, precipitation rate, cloud cover, pressure and humidity are *forecast-hour-zero model analyses*; they are not observed radar or current station measurements. UTC model-cycle time and stale status are shown. Catalogs and assets require compatible provenance, timestamp and local-path checks.
 - **Offline demonstration:** When real GFS model layers are unavailable, synthetic **illustrative** weather graphics may appear and are prominently labeled as not real data. The radar product never fabricates an observed radar frame.
@@ -41,7 +41,7 @@ Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN`
 
 In OBS Studio, create a Browser Source pointing to `/broadcast.html?program=1`, with canvas source dimensions **1920 × 1080** and an initial **30 FPS** capture setting (a setting, not a measured render guarantee). Open the operator view separately.
 
-The operator reported passing all six checks on 2026-11-04: program rendered in OBS; preview did not affect program; TAKE changed the program shot; radar/model selection retained source timestamps; backend loss held the program and stale data was withheld; and backend restart restored control without losing the selected shot. This test was performed by the operator, not independently witnessed or reproduced in this repository review. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
+**Real OBS acceptance has been run (2026-11-04/05) with the operator reporting all six checks passed.** The six checks are defined in the [OBS test guide](OBS-TEST-GUIDE.md); Recorded video evidence is complete only for the first check; the rest rest on the operator's report, and the long alert-feed-unavailable state and a GFS timestamp have not been captured. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
 
 ## Build and verification
 

@@ -7,7 +7,8 @@ const good = { scene: "mia", field: "radar", revision: 3, updated_at: "2026-01-0
 
 describe("parseProgram", () => {
   it("accepts a valid state", () => {
-    expect(parseProgram(good, scenes, fields)).toEqual({ scene: "mia", field: "radar", revision: 3, updatedAt: "2026-01-01T00:00:00Z" });
+    expect(parseProgram(good, scenes, fields)).toEqual({ scene: "mia", field: "radar", revision: 3, updatedAt: "2026-01-01T00:00:00Z", persistenceError: null });
+    expect(parseProgram({ ...good, persistence: { ok: false, error: "OSError: disk full" } }, scenes, fields)?.persistenceError).toBe("OSError: disk full");
   });
   it("rejects unset, unknown and malformed states", () => {
     expect(parseProgram({ ...good, scene: null, revision: 0 }, scenes, fields)).toBeNull();

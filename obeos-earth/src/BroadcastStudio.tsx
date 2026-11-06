@@ -418,6 +418,9 @@ export default function BroadcastStudio() {
               controlLink(controlOk, nowMs) === "ok" ? (onAir ? "ON AIR: " + onAir.scene.toUpperCase() + " / " + onAir.field + " · rev " + onAir.revision : "Server link OK · nothing on air yet") :
               controlLink(controlOk, nowMs) === "lost" ? "CONTROL LINK LOST · OBS output is holding its last shot" : "Connecting to program control"}
           </p>
+          {onAir?.persistenceError && <p className="control-status link-lost" role="alert">
+            WARNING: on-air state could not be saved ({onAir.persistenceError}). The shot is live, but a server restart would revert it.
+          </p>}
           <div className="control-caption">03 / ON AIR</div>
           <p className="preview-line">PREVIEW: {location.city} / {field}{onAir && onAir.scene === location.id && onAir.field === field ? " · already on air" : " · not on air"}</p>
           <button type="button" className="take-button" onClick={takeToAir} disabled={controlLink(controlOk, nowMs) !== "ok"}>

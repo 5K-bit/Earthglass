@@ -1,6 +1,6 @@
 // Pure logic for the server-held on-air state (see earthglass/control.py).
 
-export type ProgramState = { scene: string; field: string; revision: number; updatedAt: string | null };
+export type ProgramState = { scene: string; field: string; revision: number; updatedAt: string | null; persistenceError: string | null };
 
 export const CONTROL_POLL_MS = 1000;
 export const CONTROL_LINK_LOST_MS = 5000;
@@ -12,11 +12,16 @@ export function parseProgram(raw: unknown, scenes: readonly string[], fields: re
   if (typeof value.scene !== "string" || !scenes.includes(value.scene)) return null;
   if (typeof value.field !== "string" || !fields.includes(value.field)) return null;
   if (typeof value.revision !== "number" || !Number.isInteger(value.revision) || value.revision < 1) return null;
+  const persistence = value.persistence as { ok?: unknown; error?: unknown } | undefined;
+  const persistenceError = persistence && persistence.ok === false
+    ? (typeof persistence.error === "string" ? persistence.error : "save failed")
+    : null;
   return {
     scene: value.scene,
     field: value.field,
     revision: value.revision,
     updatedAt: typeof value.updated_at === "string" ? value.updated_at : null,
+    persistenceError,
   };
 }
 

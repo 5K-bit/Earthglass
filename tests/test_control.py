@@ -40,6 +40,31 @@ def test_corrupt_saved_state_starts_unset(tmp_path):
     assert ProgramState(tmp_path / "program.json").snapshot()["revision"] == 0
 
 
+def test_corrupt_saved_state_is_reported_and_quarantined(tmp_path):
+    path = tmp_path / "program.json"
+    path.write_text("{not json", encoding="utf-8")
+    snapshot = ProgramState(path).snapshot()
+    assert snapshot["persistence"]["recovered_from"]
+    assert (tmp_path / "program.json.corrupt").exists() and not path.exists()
+
+
+def test_failed_save_is_reported_not_silent(tmp_path, monkeypatch):
+    state, client = make(tmp_path)
+    assert client.post("/api/broadcast/program", json={"scene": "mia", "field": "radar"}).json()["persistence"]["ok"]
+
+    def boom(self, target):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("pathlib.Path.replace", boom)
+    body = client.post("/api/broadcast/program", json={"scene": "nyc", "field": "radar"}).json()
+    assert body["scene"] == "nyc"  # the live program still changes
+    assert body["persistence"]["ok"] is False and "disk full" in body["persistence"]["error"]
+    assert client.get("/api/broadcast/program").json()["persistence"]["ok"] is False
+    assert not [p for p in tmp_path.iterdir() if p.name not in {"program.json"}]  # no leaked temp files
+    monkeypatch.undo()
+    assert client.post("/api/broadcast/program", json={"scene": "chi", "field": "radar"}).json()["persistence"]["ok"]
+
+
 def test_token_required_when_configured(tmp_path, monkeypatch):
     monkeypatch.setenv("EARTHGLASS_CONTROL_TOKEN", "s3cret")
     _, client = make(tmp_path)

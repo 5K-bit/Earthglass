@@ -16,7 +16,7 @@ $env:VITE_BROADCAST_API_ORIGIN="http://127.0.0.1:8000"
 pnpm --dir obeos-earth dev
 ```
 
-Start the EarthGlass API separately on `127.0.0.1:8000` before using live radar, alerts or program control. The EarthGlass FastAPI app exposes the radar, alert and program endpoints. **It does not automatically mount the GFS weather catalog**; the six GFS analysis products require the separately configured, weather-enabled canonical Earth host and image endpoints. Set `VITE_BROADCAST_API_ORIGIN` to the origin serving the needed endpoints. If frontend and backend run on different origins, configure allowed CORS origins.
+Start the EarthGlass API separately on `127.0.0.1:8000` before using live radar, alerts or program control. The EarthGlass FastAPI app exposes the radar, alert and program endpoints. The same API now also serves the six GFS analysis products (`/api/weather/layers`, assets under `/weather/gfs/latest/`). Install the weather extras (`pip install -e .[weather]`) and request a refresh per layer with `POST /api/weather/layers/<id>/refresh` (ids: temperature, wind10m, precipRate, cloudCover, pressure, humidity); data is cached under `EARTHGLASS_CACHE_DIR/weather/gfs`. The studio treats a model cycle older than 10 hours as stale, so refresh shortly before a demo. Set `EARTHGLASS_WEATHER_OFFLINE=1` to serve retained data only. Set `VITE_BROADCAST_API_ORIGIN` to the API origin. If frontend and backend run on different origins, configure allowed CORS origins.
 
 - Operator interface: `http://127.0.0.1:5173/broadcast.html`
 - Program/OBS Browser Source: `http://127.0.0.1:5173/broadcast.html?program=1`

@@ -1,6 +1,6 @@
 # EarthGlass Broadcast — prototype v0.1
 
-**Status: demonstration candidate. Browser-level integration verified; OBS acceptance: operator reports all six checks passed; video evidence is partial. Not certified for air.**
+**Status: demonstration candidate. Browser-level integration verified; OBS acceptance: five of six checks recorded on video (side by side, commit fd159da); OBS-04 lacks a real GFS timestamp. Not certified for air.**
 
 EarthGlass Broadcast is a browser-rendered, 16:9 Cesium weather storytelling prototype with a separate operator/control view and program output. It is built on the existing OBEOS Earth frontend and the EarthGlass FastAPI layer. Every presentation carries **PROTOTYPE / NOT FOR AIR**.
 
@@ -41,7 +41,7 @@ Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN`
 
 In OBS Studio, create a Browser Source pointing to `/broadcast.html?program=1`, with canvas source dimensions **1920 × 1080** and an initial **30 FPS** capture setting (a setting, not a measured render guarantee). Open the operator view separately.
 
-**Real OBS acceptance has been run (2026-11-04/05) with the operator reporting all six checks passed.** The six checks are defined in the [OBS test guide](OBS-TEST-GUIDE.md); Recorded video evidence is complete only for the first check; the rest rest on the operator's report, and the long alert-feed-unavailable state and a GFS timestamp have not been captured. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
+**Real OBS acceptance has been run (2026-11-04/06).** The six checks are defined in the [OBS test guide](OBS-TEST-GUIDE.md). A side-by-side recording on `main` commit `fd159da` covers preview/TAKE separation, hold on API loss with CONTROL LINK LOST, ALERT FEED UNAVAILABLE and recovery. A real GFS model-cycle timestamp has not been captured, because the GFS catalog is not yet served by the backend. See the [validation record](BROADCAST-VALIDATION-2026-11-04.md).
 
 ## Build and verification
 

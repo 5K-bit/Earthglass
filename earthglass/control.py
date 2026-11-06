@@ -48,10 +48,16 @@ class ProgramState:
         self._state: dict[str, Any] = {"scene": None, "field": None, "revision": 0, "updated_at": None}
         # Staged next shot. Held in memory only: a restart never leaves something armed.
         self._preview: dict[str, str] | None = None
+        # Persistence health, reported to the operator. In-memory state stays authoritative
+        # for the live program, but a failed save must never be silent: after a restart the
+        # program would revert to an older shot.
+        self._persistence: dict[str, Any] = {"ok": True, "error": None, "failed_at": None, "recovered_from": None}
         self._load()
 
     def _load(self) -> None:
         if self.path is None:
+            return
+        if not self.path.exists():
             return
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
@@ -66,12 +72,27 @@ class ProgramState:
                     "revision": data["revision"],
                     "updated_at": data.get("updated_at"),
                 }
-        except (OSError, KeyError, ValueError, TypeError):
-            pass  # no usable saved state: start unset
+            else:
+                raise ValueError("saved program state has invalid fields")
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            # No usable saved state: start unset, keep the bad file for inspection, and say so.
+            self._persistence["recovered_from"] = f"{type(exc).__name__}: {exc}"
+            try:
+                self.path.replace(self.path.with_name(self.path.name + ".corrupt"))
+            except OSError:
+                pass
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+            return self._view()
+
+    def _view(self) -> dict[str, Any]:
+        return {
+            **self._state,
+            "preview": self._preview,
+            "persistence": dict(self._persistence),
+            "server_time": isoformat(self.clock()),
+        }
 
     def stage(self, scene: str, field: str) -> dict[str, Any]:
         """Arm the next shot without changing what is on air."""
@@ -80,7 +101,7 @@ class ProgramState:
             raise ValueError("scene and field must be short lowercase identifiers")
         with self._lock:
             self._preview = {"scene": scene, "field": field}
-            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+            return self._view()
 
     def take(self, scene: str, field: str) -> dict[str, Any]:
         """Put the staged shot on air. The caller names what it believes is staged; a mismatch is refused."""
@@ -97,7 +118,7 @@ class ProgramState:
                 "updated_at": isoformat(self.clock()),
             }
             self._persist()
-            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+            return self._view()
 
     def update(self, scene: str, field: str) -> dict[str, Any]:
         if not IDENTIFIER.match(scene) or not IDENTIFIER.match(field):
@@ -110,19 +131,34 @@ class ProgramState:
                 "updated_at": isoformat(self.clock()),
             }
             self._persist()
-            return {**self._state, "preview": self._preview, "server_time": isoformat(self.clock())}
+            return self._view()
 
     def _persist(self) -> None:
         if self.path is None:
             return
+        temp: Path | None = None
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with NamedTemporaryFile(dir=self.path.parent, delete=False) as handle:
-                handle.write(json.dumps(self._state).encode("utf-8"))
                 temp = Path(handle.name)
+                handle.write(json.dumps(self._state).encode("utf-8"))
+                handle.flush()
+                os.fsync(handle.fileno())
             temp.replace(self.path)
-        except OSError:
-            pass  # the live in-memory state stays authoritative
+            self._persistence = {"ok": True, "error": None, "failed_at": None, "recovered_from": None}
+        except OSError as exc:
+            # The live in-memory state stays authoritative, but the failure is reported.
+            self._persistence = {
+                "ok": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "failed_at": isoformat(self.clock()),
+                "recovered_from": self._persistence.get("recovered_from"),
+            }
+            if temp is not None:
+                try:
+                    temp.unlink()
+                except OSError:
+                    pass
 
     def router(self) -> APIRouter:
         router = APIRouter()

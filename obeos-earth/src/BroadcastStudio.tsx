@@ -9,7 +9,7 @@ import {
   alertFeedFresh, alertPolygons, assessAlertBanner, assessRadar, parseAlertFeed,
   type AlertFeature, type AlertFeed, type RadarMeta,
 } from "./broadcastAlerts";
-import { CONTROL_POLL_MS, controlLink, nextProgram, parseProgram, type ProgramState } from "./broadcastControl";
+import { CONTROL_POLL_MS, controlLink, nextProgram, parseProgram, parseRecovery, type ProgramState } from "./broadcastControl";
 import "./broadcast.css";
 
 type Location = { id: string; city: string; region: string; heading: string; lon: number; lat: number; distance: number };
@@ -106,6 +106,7 @@ export default function BroadcastStudio() {
   const programOnly = new URLSearchParams(window.location.search).get("program") === "1";
   const [controlOk, setControlOk] = useState<number | null>(null);
   const [onAir, setOnAir] = useState<ProgramState | null>(null);
+  const [recovery, setRecovery] = useState<string | null>(null);
   const [controlError, setControlError] = useState("");
   const assessment = assessLayer(catalog.find(item => item.id === field), nowMs, lastFetchMs);
   const isRadar = field === "radar";
@@ -131,9 +132,11 @@ export default function BroadcastStudio() {
       try {
         const response = await fetch(API_ORIGIN + "/api/broadcast/program", { headers: { Accept: "application/json" }, cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
-        const next = parseProgram(await response.json(), sceneIds, fieldIds);
+        const body = await response.json();
+        const next = parseProgram(body, sceneIds, fieldIds);
         if (!active) return;
         setControlOk(Date.now());
+        setRecovery(parseRecovery(body));
         setOnAir(previous => {
           const chosen = nextProgram(previous, next);
           if (programOnly && chosen && chosen !== previous) {
@@ -418,6 +421,12 @@ export default function BroadcastStudio() {
               controlLink(controlOk, nowMs) === "ok" ? (onAir ? "ON AIR: " + onAir.scene.toUpperCase() + " / " + onAir.field + " · rev " + onAir.revision : "Server link OK · nothing on air yet") :
               controlLink(controlOk, nowMs) === "lost" ? "CONTROL LINK LOST · OBS output is holding its last shot" : "Connecting to program control"}
           </p>
+          {recovery && <p className="control-status link-lost" role="alert">
+            WARNING: the server restarted without the previously committed shot ({recovery}). Nothing is armed; re-take the shot you want on air.
+          </p>}
+          {onAir?.persistenceError && <p className="control-status link-lost" role="alert">
+            WARNING: on-air state could not be saved ({onAir.persistenceError}). The shot is live, but a server restart would revert it.
+          </p>}
           <div className="control-caption">03 / ON AIR</div>
           <p className="preview-line">PREVIEW: {location.city} / {field}{onAir && onAir.scene === location.id && onAir.field === field ? " · already on air" : " · not on air"}</p>
           <button type="button" className="take-button" onClick={takeToAir} disabled={controlLink(controlOk, nowMs) !== "ok"}>

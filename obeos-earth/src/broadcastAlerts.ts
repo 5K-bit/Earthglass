@@ -3,6 +3,8 @@
 export const MAX_FEED_AGE_MS = 3 * 60 * 1000;
 // NWS data older than this when it reaches the screen is not treated as current (server refreshes every 2 min).
 export const MAX_ALERT_SOURCE_AGE_MS = 5 * 60 * 1000;
+/** Timestamps this far ahead of the browser clock are clock mismatch, not freshness. Same bound radar uses. */
+export const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 export const MAX_RADAR_OBSERVATION_AGE_MS = 15 * 60 * 1000;
 
 export type RadarMeta = {
@@ -87,8 +89,9 @@ export function parseAlerts(value: unknown): AlertFeature[] {
 /** True only for a confirmed-fresh feed: live from the server, retrieved recently, fetched recently. */
 export function alertFeedFresh(feed: AlertFeed, nowMs: number): boolean {
   return feed.ok && !feed.serverStale && feed.lastFetchMs !== null &&
-    nowMs - feed.lastFetchMs <= MAX_FEED_AGE_MS &&
-    feed.retrievedMs != null && nowMs - feed.retrievedMs <= MAX_ALERT_SOURCE_AGE_MS;
+    nowMs - feed.lastFetchMs <= MAX_FEED_AGE_MS && feed.lastFetchMs - nowMs <= MAX_CLOCK_SKEW_MS &&
+    feed.retrievedMs != null && nowMs - feed.retrievedMs <= MAX_ALERT_SOURCE_AGE_MS &&
+    feed.retrievedMs - nowMs <= MAX_CLOCK_SKEW_MS;
 }
 
 const SEVERITY_RANK: Record<string, number> = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1 };

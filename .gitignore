@@ -8,3 +8,6 @@ obeos-earth/node_modules/
 obeos-earth/*.tsbuildinfo
 
 /artifacts/
+
+# Soak test output
+soak-run*/

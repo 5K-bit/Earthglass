@@ -1,0 +1,9 @@
+.git
+.venv
+.earthglass-cache
+__pycache__
+.pytest_cache
+obeos-earth/node_modules
+obeos-earth/dist
+tests
+docs

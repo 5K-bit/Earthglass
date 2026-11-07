@@ -1,0 +1,29 @@
+# One command, one reproducible deployment:
+#   EARTHGLASS_CONTROL_TOKEN=choose-a-long-secret docker compose up --build
+# Operator page: http://127.0.0.1:8080/broadcast.html
+# OBS Browser Source: http://127.0.0.1:8080/broadcast.html?program=1
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      # Required: behind the proxy the API cannot treat requests as local, so control writes need a token.
+      EARTHGLASS_CONTROL_TOKEN: ${EARTHGLASS_CONTROL_TOKEN:?set EARTHGLASS_CONTROL_TOKEN to a long secret}
+      EARTHGLASS_WEATHER_REFRESH_MINUTES: ${EARTHGLASS_WEATHER_REFRESH_MINUTES:-20}
+    volumes:
+      - earthglass-data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped
+
+volumes:
+  earthglass-data:

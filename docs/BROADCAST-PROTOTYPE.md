@@ -37,6 +37,16 @@ Backend program writes require `X-Control-Token` when `EARTHGLASS_CONTROL_TOKEN`
 - **NOAA GFS:** Temperature, 10 m wind, precipitation rate, cloud cover, pressure and humidity are *forecast-hour-zero model analyses*; they are not observed radar or current station measurements. UTC model-cycle time and stale status are shown. Catalogs and assets require compatible provenance, timestamp and local-path checks.
 - **Offline demonstration:** When real GFS model layers are unavailable, synthetic **illustrative** weather graphics may appear and are prominently labeled as not real data. The radar product never fabricates an observed radar frame.
 
+## One-command deployment (Docker)
+
+Requires Docker. From the repository root:
+
+```bash
+EARTHGLASS_CONTROL_TOKEN=choose-a-long-secret docker compose up --build
+```
+
+This starts the API (radar, NWS alerts, GFS layers with automatic refresh, program control) and an nginx container that serves the studio and proxies the API on one origin, so no CORS settings are needed. Operator page: `http://127.0.0.1:8080/broadcast.html`. OBS Browser Source: `http://127.0.0.1:8080/broadcast.html?program=1`. Behind the proxy the API cannot treat requests as local, so control writes need the token; set it once in the operator browser's console with `localStorage.setItem("earthglass-control-token", "<the token>")`. Program state, radar frames and GFS data persist in the `earthglass-data` volume. This is a prototype deployment bound to the local machine (127.0.0.1:8080), not a hardened production setup: no TLS, accounts or audit log.
+
 ## OBS capture acceptance
 
 In OBS Studio, create a Browser Source pointing to `/broadcast.html?program=1`, with canvas source dimensions **1920 × 1080** and an initial **30 FPS** capture setting (a setting, not a measured render guarantee). Open the operator view separately.

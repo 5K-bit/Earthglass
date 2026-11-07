@@ -1,8 +1,8 @@
-# EarthGlass Broadcast v0.1 — demonstration validation record (OBS acceptance: five checks on video, GFS timestamp open)
+# EarthGlass Broadcast v0.1 — demonstration validation record (OBS acceptance: all six checks on video)
 
 **Date:** 2026-11-04 (operator local date)  
 **Product:** EarthGlass Broadcast prototype v0.1  
-**Release classification:** **Demonstration candidate — operator reports all 6 OBS checks passed; recorded evidence covers 5 (OBS-01, 02, 03, 05, 06); OBS-04 lacks a real GFS timestamp — PROTOTYPE / NOT FOR AIR**  
+**Release classification:** **Demonstration candidate — operator reports all 6 OBS checks passed; recorded evidence now covers all six (OBS-01 to OBS-06), including a real GFS model-cycle timestamp — PROTOTYPE / NOT FOR AIR**  
 **Scope:** Unattended/station production approval **not granted**.  
 **Repository:** [5K-bit/Earthglass](https://github.com/5K-bit/Earthglass)  
 **Implementation track:** [PR #6](https://github.com/5K-bit/Earthglass/pull/6), [PR #7](https://github.com/5K-bit/Earthglass/pull/7), [PR #8](https://github.com/5K-bit/Earthglass/pull/8), [PR #9](https://github.com/5K-bit/Earthglass/pull/9)
@@ -23,11 +23,18 @@
 | OBS-01 | Browser Source at `broadcast.html?program=1` renders the 3D globe. | PASS | On video: both recordings show the globe; the first runs 32 min with radar observation time advancing (23:48 → 00:18 UTC). | None. |
 | OBS-02 | Staging Miami without TAKE leaves the OBS program on New York. | PASS | On video (recording 4, side by side): from 0:00 the operator page has Miami staged while the OBS program stays on New York until 0:26; the cut to Miami follows the TAKE TO AIR press at about 0:26–0:28. The click that staged Miami is before the recording starts. | None for the stay-on-New-York behavior. |
 | OBS-03 | TAKE changes the OBS program to the staged shot, following server state. | PASS | On video (recording 4): OBS changes New York → Miami at about 0:26–0:28 with the cursor on TAKE TO AIR; the page then shows ON AIR: MIA / radar. Server state at that time: `mia / radar`, revision 9. Earlier, recording 2: New York → Miami → San Francisco → Chicago. | None. |
-| OBS-04 | Product identity and radar-observation / model-cycle timestamps are shown. | PARTIAL | On video: radar identity and observed time (e.g. Nov 6, 19:35 UTC in recording 4), alert expiry times, and the stale-radar warning. Temperature shots are stamped illustrative. | **A real GFS model-cycle timestamp is not captured.** On commit `fd159da` the API does not serve the GFS catalog (`/api/weather/layers` returns 404); this depends on the backend unification work. |
+| OBS-04 | Product identity and radar-observation / model-cycle timestamps are shown. | PASS | On video: radar identity and observed time (Nov 7, 00:36 UTC in recording 5), alert expiry times, and the stale-radar warning. **Real GFS (recording 5, commit `4059824`): temperature, wind and air pressure shots show "NOAA GFS MODEL ANALYSIS · REVIEW REQUIRED" and "MODEL CYCLE Nov 6, 18:00 UTC", legible at about 0:40, 1:45 and 2:30 of the OBS recording, with PROTOTYPE / NOT FOR AIR visible.** | Other GFS fields (precipitation rate, cloud cover, humidity) were refreshed live but not put on air in a recording. |
 | OBS-05 | Backend stopped: program holds its last shot; operator shows **CONTROL LINK LOST** with TAKE disabled; stale data is withheld or marked unavailable. | PASS | On video (recording 4): the API console window is visible at about 5:26–5:30 and closed by mouse about 5:30–5:45 (about 14:41:30–14:41:45). By about 5:52 the operator page shows CONTROL LINK LOST with TAKE TO AIR greyed, and OBS holds Miami. ALERT FEED UNAVAILABLE appears on OBS and the operator page at about 7:30–7:36 (about 14:43:30–14:43:35), roughly 2 min after the API closed; the 3-minute limit is measured from the last successful alert fetch. A red RADAR OUT OF DATE / NO RADAR IS SHOWN box follows at about 8:00–8:05. API confirmed down by a health check at 14:42:24. | None. |
 | OBS-06 | Backend restarted: control link returns and the committed on-air selection recovers. | PASS | On video (recording 4): the API was relaunched at 14:47:21 and answered by 14:48:07; on the server the on-air state remained `mia / radar`, revision 9, with nothing staged. TAKE TO AIR is re-enabled by about 12:02–12:10 (about 14:48:01–14:48:09); the flood-statement banner and fresh radar return shortly after. OBS showed Miami throughout. | The control-link text returning to "Server link OK" was not read frame by frame. |
 
 **OBS setup:** Browser Source, nominal 1920 × 1080, with initial 30 FPS source configuration. **This is not a measured 30 FPS or 1080p rendering benchmark.**
+
+### Recording 5 — real GFS in OBS, on merged `main` (2026-11-06)
+
+- **Tested commit:** `4059824` (`main` after PRs #16 and #18: the GFS catalog is served by the main API and refreshes itself). The API was started with no manual weather request; all six layers moved to the 18:00 UTC cycle on their own.
+- **Files (stored outside Git):** `GFSrecording.mp4` (full screen, OBS beside the operator page, 4 min 37 s, 1912×1072) and `2026-11-06 19-40-57.mp4` (OBS program output only, 3 min 02 s, 1920×1080). Video time 0:00 is about 19:40:58 local (00:40:58 UTC, Nov 7).
+- **Timeline (OBS recording, approximate):** 0:00–0:25 New York radar (observed Nov 7, 00:36 UTC); about 0:25–0:30 cut to the temperature shot; about 1:45–1:50 wind; about 2:10 air pressure through the end at 3:02. The operator page, with its field menu and TAKE TO AIR button, is visible in the full-screen recording.
+- Times were read from contact-sheet frames, so allow several seconds either way.
 
 ### Recording 4 — side-by-side run on merged `main` (2026-11-06)
 
@@ -51,7 +58,7 @@
 - [ ] Attach the OBS recordings (partly done, stored outside Git) and record hardware details (GPU, driver, OBS version, render frame times).
 - [x] Force an expired radar frame in a browser run (done); repeat it inside OBS.
 - [x] Full-screen capture with the operator page beside OBS: stage without TAKE, TAKE, API outage with ALERT FEED UNAVAILABLE, recovery (recording 4, commit `fd159da`).
-- [ ] Capture a real GFS model field with its model-cycle timestamp in OBS (needs the GFS catalog served by the backend).
+- [x] Capture a real GFS model field with its model-cycle timestamp in OBS (recording 5, commit `4059824`).
 - [ ] Run extended soak testing (multiple days), network impairment, alert feed loss/recovery and clock-skew scenarios.
 - [ ] Measure sustained 1080p/60 and target hardware performance; evaluate 4K separately if required.
 - [ ] Have a qualified station meteorologist review severe-weather workflows, alert semantics, geography and data attribution.
@@ -73,7 +80,7 @@ PR #9 was reconciled with the newly merged `main` before its final CI run. The c
 
 ## Acceptance decision
 
-**GO for supervised demonstrations and station pilot discussions (operator-attested; see attestation above).** The operator reports all six checks passed. Recorded evidence now covers OBS-01, 02, 03, 05 and 06 (recording 4, tested commit `fd159da`). The one remaining gap is OBS-04: a real GFS model-cycle timestamp has not been captured. "Demonstration Validated" is not claimed until those are closed.  
+**GO for supervised demonstrations and station pilot discussions (all six checks now have recorded video evidence).** The operator reports all six checks passed. Recorded evidence now covers all six checks: OBS-01, 02, 03, 05 and 06 (recording 4, commit `fd159da`) and OBS-04 including a real GFS model-cycle timestamp (recording 5, commit `4059824`). Open items remain outside this record: a soak test, target-hardware performance and a meteorologist review. "Demonstration Validated" is not claimed until those are closed.  
 **NO-GO for unattended live broadcast, emergency-alert decision-making, production service commitments, or removing the PROTOTYPE / NOT FOR AIR watermark.**
 
 The Apache-2.0 EarthGlass core remains open source. Commercial value is in the station integration, branding, operator workflows, deployment, training and reliability support. This evidence record is a scope-limited demonstration acceptance, not third-party certification.
